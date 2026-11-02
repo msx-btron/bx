@@ -37,7 +37,7 @@ from 16-bit to 64-bit}}
 \maketitle
 
 \begin{abstract}
-The BTRON BX series is a coherent family of clean, synthesizable FPGA RTL machines that systematically revive the peripheral ecosystems and computational spirit of classic 8-bit through 64-bit platforms. From BX-16 upward the series adopts a deliberately scalable vector architecture whose element widths, vector lengths and floating-point capabilities grow in lock-step with the host integer ISA. The vector story begins with the concrete VEX (Vector Extension) defined for the 16-bit R1600 core and is thereafter grounded in the RISC-V Vector Extension (RVV) and its embedded subsets (Zve32x/f, Zve64x/f/d), adapted where necessary so that software written against the BX-16 model remains source-compatible. All designs are expressed in Bluespec SystemVerilog, target contemporary FPGAs, and share a common philosophical stance: respect for the original engineering, clean architecture, and open accessibility. This umbrella note situates the four cores---bx-8, bx-16, bx-32 and bx-64---within a single coherent programme that includes a progressive vector capability.
+The BTRON BX series is a coherent family of clean, synthesizable FPGA RTL machines that revive the peripheral ecosystems of classic 8-bit through 64-bit platforms on a single open ISA. Every host is RISC-V. The 8-bit and 16-bit members are not new base ISAs: they are RV32I harts whose \emph{datapath and data bus} are 8 or 16 bits wide, executing the standard 32-bit instruction encodings over multiple cycles. Their vector unit is SVM (Scalar--Vector--Matrix), a named downward profile of the RISC-V Vector Extension (RVV~1.0). BX-32 and BX-64 leave the profile and implement ratified subsets (Zve32f, then Zve64d or full V). All designs are expressed in Bluespec SystemVerilog, target contemporary FPGAs, and share one stance: respect for the original engineering, clean architecture, and open accessibility.
 \end{abstract}
 
 \section{Motivation and Unifying Philosophy}
@@ -50,44 +50,30 @@ Can the essential organisation of these machines---their peripheral libraries, t
 
 From BX-16 upward an additional requirement is imposed: the vector capability itself must be \emph{scalable}. The same programming model, the same configuration mechanism, and the same element-type hierarchy should appear at every width, merely with larger minimum VLEN, wider supported element widths, and richer floating-point support as one moves from 16-bit to 64-bit hosts.
 
-\section{The VEX Vector Extension --- Authoritative Definition}
+\section{SVM --- a Scalable Profile of RVV}
 
-VEX is the name given to the scalable vector architecture of the BX series. It is first realised concretely on the 16-bit R1600 core (see the companion note \texttt{btron-bx16}) and is thereafter mapped onto the ratified RISC-V Vector Extension (RVV~1.0) and its embedded subsets.
+SVM (Scalar--Vector--Matrix) is the name of the BX vector profile. It is not a private opcode map. Scalar instructions are RV32I (BX-8, BX-16) or RV32/RV64 (BX-32, BX-64). Vector instructions use the standard RVV OP-V encoding, the 32 architectural vector registers \texttt{v0}--\texttt{v31}, and \texttt{vsetvl}. Matrix and geometry operations that RVV does not define (\texttt{VMAT4VEC}, \texttt{VCROSS}) are a separate custom extension, \texttt{Xsvm}, and are never required for the SVM profile itself.
 
-\subsection{Core Properties (common to every width)}
+There is no ratified RISC-V base with XLEN of 8 or 16. An ``8-bit RISC-V'' or ``16-bit RISC-V'' in this series means an RV32I hart with a narrow datapath. XLEN stays 32 so that a \texttt{vsetvli} encoded for SVM-8 is still a legal RVV configuration instruction when the same program is moved to BX-32.
 
-\begin{itemize}[leftmargin=1.5em]
-  \item Orthogonal vector register file (16 architectural vector registers).
-  \item Configurable element width (SEW) drawn from the hierarchy \{8, 16, 32, 64\}.
-  \item Length-agnostic programming style: kernels are written against a dynamic vector length (VL) that is set by a \texttt{vsetvl}-style configuration instruction.
-  \item Support for saturating integer arithmetic, widening multiplies, reductions, and (from BX-32 upward) single- and double-precision floating-point.
-  \item A small set of domain-specific accelerators (4$\times$4 matrix-by-vector, 3-element cross product, etc.) that appear as single instructions on BX-16 and expand into short RVV sequences on BX-32/BX-64.
-\end{itemize}
-
-\subsection{Concrete Realisation on BX-16 (R1600 + VEX)}
-
-\begin{itemize}[leftmargin=1.5em]
-  \item Vector registers: VR0--VR15, each 128 bits (primary view 4$\times$32-bit Q16.16 lanes; alternative views 8$\times$16-bit).
-  \item Primary arithmetic format: Q16.16 fixed-point with a 64-bit intermediate product.
-  \item Key operations (non-exhaustive): VADD, VSUB, VMUL, VMADD, VDOT, VCROSS, VLD, VST, VBROADCAST, VMAT4VEC, VWAIT.
-  \item Configuration is performed by a compact control register set that is intentionally isomorphic to the later RVV \texttt{vtype}/\texttt{vl} state, so that the same length-agnostic loops compile unchanged when the design is retargeted to RV32.
-\end{itemize}
-
-\subsection{Mapping onto the RVV Hierarchy}
+\subsection{Profiles}
 
 \begin{center}
 \begin{tabular}{@{}llll@{}}
 \toprule
-\textbf{BX Machine} & \textbf{Host} & \textbf{VEX / RVV Subset} & \textbf{Key Capabilities} \\
+\textbf{BX} & \textbf{Datapath} & \textbf{SVM / RVV profile} & \textbf{What is implemented} \\
 \midrule
-BX-16 & R1600 (16-bit) & VEX (native) & SEW 8/16, VLEN 32--128, integer + saturating \\
-BX-32 & RV32 & Zve32f / Zve64f & SEW 8/16/32, FP32, VLEN $\ge$ 64 \\
-BX-64 & RV64 & V / Zve64d & SEW 8/16/32/64, FP32+FP64, VLEN $\ge$ 128 \\
+BX-8  & 8-bit  & SVM-8  & ELEN 8, VLEN 32, EEW 8 only, integer \\
+BX-16 & 16-bit & SVM-16 & ELEN 16, VLEN 128, EEW 8/16, saturating \\
+BX-32 & 32-bit & Zve32f & EEW 8/16/32, FP32, VLEN $\ge$ 128 \\
+BX-64 & 64-bit & V / Zve64d & EEW 8/16/32/64, FP32+FP64, VLEN $\ge$ 128 \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Software written against the BX-16 VEX model remains source-compatible; only the available element widths and the concrete VLMAX change. The special instructions (VMAT4VEC, VCROSS, \ldots) are either retained as custom opcodes under the RVV custom-0/1 space or expanded by the compiler into short standard sequences.
+SVM-8 is \emph{not} \texttt{Zve32x}: that subset requires EEW of 8, 16, and 32. SVM-16 is not \texttt{Zve32x} either: its ELEN is 16, so a \texttt{vsetvl} that asks for SEW=32 is illegal. Both profiles are teaching subsets of the RVV instruction set, implemented with the real encoding, and identified by a custom \texttt{misa}-adjacent capability bit rather than by claiming a ratified Zve string. From BX-32 upward the claim becomes a real extension string.
+
+Q16.16 is not an architectural element type. On SVM-16 a 16-bit lane multiply widens into a 32-bit result (\texttt{vwmul}); the shift that builds a Q16.16 value is ordinary arithmetic. The old 16-register, 16-bit-opcode VEX coprocessor is withdrawn. It could not be RVV.
 
 \section{Scalable Vector Architecture across the Series}
 

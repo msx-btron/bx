@@ -1,0 +1,11 @@
+\chapter{A Note to the RTL Reader}
+
+Read the book in order the first time. The profiles in Part~I are short on purpose. They exist so that later chapters can say ``SVM-8'' instead of repeating a list of legal element widths.
+
+Then build in the order of Part~IV. A scalar RV32I that fetches, decodes, and writes back is the whole of the first milestone. The vector unit begins as a configuration instruction and a single vector add. Memory, widening, masks, and floating point come after that, and only on the machines whose profile includes them.
+
+Keep three files open while you read: the RVV specification, the profile card at the back of this book, and your elaboration parameters. If a paragraph and the profile card disagree, the card is the contract for the implementation and the paragraph is wrong.
+
+Two habits will save you more time than any micro-architectural trick. First, make an illegal configuration raise an illegal-instruction exception in the same cycle you decode \texttt{vsetvl}, not deep in a lane. Second, do not advertise a ratified extension string until every instruction that string requires is present and tested. SVM-8 and SVM-16 are profiles of the encoding. They are not Zve32x.
+
+Simulation comes before the board. A strip-mined fill that runs, with different vector lengths, on all four elaborated designs is the acceptance test of the ladder. Place and route is the acceptance test of the budget chapter, not of the architecture.

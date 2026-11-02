@@ -1,0 +1,42 @@
+\chapter{What Fits on the First FPGA}
+
+\section{The file, in bytes}
+
+Thirty-two registers times VLEN/8 is the architectural file.
+
+\begin{center}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+Machine & VLEN & File & First RAM style \\
+\midrule
+BX-8  & 32  & 128 B  & distributed \\
+BX-16 & 128 & 512 B  & distributed or one block \\
+BX-32 & 128 & 512 B  & block, replicated if ports demand \\
+BX-64 & 256 & 1 KiB  & block \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These numbers are the vector file alone. The video memory of an MSX-compatible image, and the chip memory of an Amiga-compatible image, are larger and are the memories you should budget first. The vector file is not the part that will surprise the map.
+
+\section{DSP blocks}
+
+An eight-bit add does not need a DSP block. A sixteen-bit multiply does, or it needs a multi-cycle shift-add, which is acceptable on the first BX-16 image if the cycle count is published. A single-precision fused multiply-add wants the DSP column the FPGA actually has; read the primitive and match the lane to it instead of inferring a behavioural \texttt{*} and hoping. A double-precision unit is several primitives or a sequenced mantissa multiplier. That is why the recommended first BX-64 image has two lanes, not eight.
+
+\section{The first images}
+
+The first BX-8 image contains the peripheral set required by the compatibility checklist, one integer lane of SVM-8, and a UART. It does not contain Xsvm, a second hart, or a floating-point unit.
+
+The first BX-16 image contains the sixteen-bit bus, the blitter-class master, video and audio masters, and four lanes of SVM-16 without Xsvm. Geometry, if you want it in hardware, is a second image.
+
+The first BX-32 image contains one hart, VLEN 128, four integer lanes, and one FP32 pipeline if the device is small. The first BX-64 image contains one hart, VLEN 128, Zve64d rather than a rushed V, and two lanes.
+
+\section{Clocks}
+
+Use one clock for the hart, the vector unit, and the peripheral bus on BX-8 and BX-16. A separate pixel clock is allowed for the display output, with a dual-clock FIFO you can explain. Do not clock the vector lanes faster than the bus on the compatible machines. The bus is the limit, and a faster lane only builds a queue in front of the arbiter.
+
+On BX-32 and BX-64 a faster core clock than the memory clock is reasonable. Cross it with an asynchronous or mesochronous FIFO whose depth is in the profile card, and test a vector load that drains it.
+
+\section{A finished first board}
+
+A first board is finished when three things are true. The travelling tests for that profile pass on the hardware, read back through the bus. The picture and the sound meet the compatibility checklist for BX-8 or BX-16, or the memory test meets the map you published for BX-32 or BX-64. The illegal-SEW test traps on the hardware, not only in simulation. Cycle counts may differ from the simulator if the arbiter is busier. Architectural results may not.

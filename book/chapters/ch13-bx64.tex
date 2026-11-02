@@ -1,0 +1,32 @@
+\chapter{BX-64: Application Vectors with V and Zve64d}
+\label{ch:bx64}
+
+\section{The top of the ladder}
+
+BX-64 widens XLEN to 64. The base is RV64I. The vector unit is Zve64d or the full application extension V. ELEN is 64. VLEN is at least 128, and 256 is the recommended elaboration when the block RAM budget allows a file of thirty-two registers times 256 bits, which is one kilobyte.
+
+\begin{spec}
+Legal SEW = 8, 16, 32, and 64.\\
+FP32 and FP64, including fused multiply-add.\\
+If the claim is V: every instruction V requires, VLEN at least 128,\\
+and the V bit set in \texttt{misa}.\\
+If the claim is Zve64d: do not set the V bit.
+\end{spec}
+
+The second sentence is the one that keeps the ladder honest. A machine that implements double-precision vector arithmetic and not yet the whole of V is a useful machine. It is not a V machine.
+
+\section{What arrives with sixty-four-bit elements}
+
+SEW=64 is the element width a double-precision value needs, and the element width a widened thirty-two-bit product needs if you choose to widen that far. Both appear in geometry and in audio rate conversion. The lane's integer ALU grows a sixty-four-bit path, which on a sixteen-bit or thirty-two-bit DSP primitive is a short sequence of partial adds. That sequence is internal. The architectural latency is a published integer.
+
+Masks, slides, and reductions at SEW=64 are required. Indexed accesses are required. \texttt{vstart} becomes architecturally visible if the machine has a page table and a vector load can fault on a later page than it started on. The simple machines avoided this by checking the whole access first. A sixty-four-bit hart with virtual memory cannot always do that cheaply. Implement \texttt{vstart}, test a fault on element 0 and a fault on a middle element, and document that restart is precise.
+
+\section{Two harts, local memory, DMA}
+
+The organisation that justifies a second hart is the one the wide machines are for: one hart runs the operating system and short vector work, the other runs a longer kernel from a local memory. Both are RV64 with the same vector claim. A DMA engine moves blocks into that local memory. The DMA is a bus master programmed by stores, in the same style as the blitter on BX-16. It does not fetch vector instructions.
+
+Local memory is mapped. Vector loads and stores name it with ordinary addresses. A kernel that ran on BX-32 in SEW=32 runs here in SEW=32 without change. A kernel that wants FP64 sets SEW=64 and uses the double-precision opcodes.
+
+\section{Xsvm on this machine}
+
+Leave Xsvm off on the image you use to claim V. A standard toolchain will not emit it, and a custom opcode in the middle of an otherwise clean V implementation confuses every test suite you did not write. A second elaboration, with Xsvm on, is how you compare a four-by-four custom instruction with the fused-multiply sequence. Publish both cycle counts. Keep the V-claiming image free of custom geometry.

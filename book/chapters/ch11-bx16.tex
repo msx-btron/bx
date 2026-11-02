@@ -1,0 +1,52 @@
+\chapter{BX-16: An Amiga-Compatible Machine with SVM-16}
+\label{ch:bx16}
+
+\section{The board-level picture}
+
+BX-16 can replace an Amiga in the same practical sense that BX-8 can replace an MSX. The bus is sixteen bits wide. Several masters share it: the hart, a blitter-class block mover, video fetch, and audio DMA. Chip memory and a larger local memory sit on that bus. The display timing can follow a programmed list of fetches, in the role a copper list fills on the original machine. The hart that runs the list is RV32I with a sixteen-bit data path.
+
+Integer registers remain thirty-two bits. A load word takes two halfword beats. Instruction fetch is again allowed its own port so that video DMA does not stall the decode of every parcel.
+
+\section{SVM-16}
+
+\begin{spec}
+ELEN = 16, VLEN = 128, thirty-two registers.\\
+Legal SEW = 8 or 16.\\
+LMUL may be greater than 1 only for a widening destination.\\
+Required, beyond SVM-8: strides, widening multiply,\\
+narrowing shift, saturating add and subtract,\\
+integer add reduction, slide by one, \texttt{vsetivli}.\\
+No floating point. Xsvm optional.
+\end{spec}
+
+A register holds sixteen elements of eight bits or eight elements of sixteen bits. That is enough for a short span of a scanline or a frame of samples. Longer spans strip-mine, and the bus arbiter inserts the video and audio masters between strips. Write the arbiter so that a maximum latency for the audio master is enforced. A vector copy that can lock out audio is not an Amiga-compatible bus, however correct its RVV tests are.
+
+\section{Widening, not a private fixed-point format}
+
+A sixteen-bit multiply that keeps the full product uses \texttt{vwmul.vv}. The destination elements are thirty-two bits wide, in a register group. A following narrowing shift brings a saturated sixteen-bit pixel back to SEW=16. Software that wants a Q16.16 convention shifts by sixteen. The lane does not test a mode bit named Q16.16.
+
+This is the operation a blitter-class scaler and a small transform both need. Implementing it as a special coprocessor instruction would make the kernel unreadable on BX-32. Implementing it as \texttt{vwmul} means the same source runs on Zve32f.
+
+\section{Xsvm}
+
+When the elaboration parameter \texttt{xsvm} is true, two custom-0 instructions are decoded.
+
+The matrix instruction reads four vector registers starting at a fixed base, \texttt{v8} through \texttt{v11}, as the rows of a four-by-four matrix, multiplies them by \texttt{vs2}, and writes \texttt{vd}. Using \texttt{v8} rather than \texttt{v0} keeps the mask register free. The cross-product instruction reads two registers and writes one, three elements, at the current SEW, with \texttt{vl} forced to a minimum of three or the instruction is illegal.
+
+Both instructions are undisturbed outside \texttt{vl}. Both are absent from the decoder when \texttt{xsvm} is false, and the parcels trap. The exercises that must pass on every BX-16 image do not use them.
+
+\section{One hart}
+
+Scalar parcels and vector parcels share decode, the scoreboard, and writeback. The blitter, if it is a bus master, is not a second hart and does not fetch OP-V. It is a peripheral with a pointer, a count, and a small arithmetic step, programmed by stores to its registers. New software may ignore it and use SVM-16 instead. Old software that you have translated may still program it. Keeping both is how the machine remains Amiga-compatible while the new kernels are ordinary RVV.
+
+\section{Elaboration}
+
+\begin{lstlisting}
+Profile profile = SVM16;
+Integer elen = 16;
+Integer vlen = 128;
+Integer lanes = 4;
+Bool xsvm = False; // True only on a geometry image
+\end{lstlisting}
+
+Four lanes of sixteen bits retire four elements per cycle. A full SEW=16 register then takes two arithmetic cycles, plus the read and write of the file. Publish that number. Programmers of audio mixing will plan their strip length around it.

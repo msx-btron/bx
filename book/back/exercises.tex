@@ -1,0 +1,14 @@
+\chapter{Exercises}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item Elaborate SVM-8 with one lane and with four lanes. Show that \texttt{fill8} matches and that the cycle counts differ by about four on a long quiet-bus run.
+  \item Add a video master that steals every other bus cycle. Show that \texttt{fill8} still matches.
+  \item Implement \texttt{vill} for SEW=16 on SVM-8. Write the test that reads both the trap and the CSR.
+  \item Add widening multiply on SVM-16. Produce a thirty-two-bit product of two sixteen-bit lanes and a narrowing shift back to sixteen bits with saturation. Compare with a scalar reference.
+  \item Implement Xsvm's cross product on a second BX-16 image. Show that the compatibility image traps on that opcode and still passes the travelling suite.
+  \item Bring FP32 up on BX-32 for \texttt{vfmacc.vv} at SEW=32. Publish lanes of integer work and lanes of floating-point work separately if they differ.
+  \item Take the SVM-16 \texttt{vwmul} test binary and run it, unchanged, on BX-32 and on BX-64.
+  \item Implement \texttt{vstart} for a fault in the middle of a unit-stride load on BX-64. Show a restart that retires each element once.
+  \item Draw the scoreboard for three vector register numbers and a pending load. List the pairs that may overlap and the pairs that must not.
+  \item Write the \texttt{paramsOk} function and a table of ten illegal parameter records that must not elaborate, including FP32 with ELEN 16 and \texttt{claimV} with VLEN 64.
+\end{enumerate}

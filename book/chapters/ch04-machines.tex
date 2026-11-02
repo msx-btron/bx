@@ -1,0 +1,48 @@
+\chapter{Machines That Remain MSX and Amiga}
+
+\section{The place of the original machines}
+
+The MSX and the Amiga solved real-time picture and sound with small memories, narrow buses, and specialised peripheral chips. Those chips, and the way software talks to them, are the part worth keeping in register-transfer form. A student who can read a video display processor written as rules will understand a later display controller. A student who can read a shared sixteen-bit bus with several masters will understand a later DMA fabric.
+
+BX-8 is the MSX-compatible member. Its slots, video display processor, programmable sound generator, keyboard matrix, and cartridge signalling follow the MSX map closely enough that a board can sit where an MSX sat: same kind of picture, same kind of sound, same habit of I/O ports. The processor is an RV32I hart with an eight-bit data path and the SVM-8 vector profile.
+
+BX-16 is the Amiga-compatible member. Its data bus is sixteen bits wide. Memory is shared among the processor, a blitter-class mover, a video fetch, and an audio path, in the spirit of the Amiga chipset. The processor is an RV32I hart with a sixteen-bit data path and the SVM-16 vector profile. It can take the place of an Amiga in the same practical sense: a single FPGA image that runs a sixteen-bit desktop-class peripheral set and a vector unit sized for blits, mixing, and small transforms.
+
+\section{What compatible means in RTL}
+
+Compatibility, here, is a list you can tick on a board, not a promise that every original binary image will execute.
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Address ranges and register layouts of the kept peripherals match the reference machines within documented differences.
+  \item Bus width matches: eight bits on BX-8, sixteen bits on BX-16.
+  \item Cycle behaviour of the peripherals is specified and tested against the reference documents you choose to follow.
+  \item Software that is written for the BX hart, in RV32I and in the vector profile, drives those peripherals.
+  \item A thin compatibility layer, if you write one, translates or interprets guest code. It is software on the hart, not a second integer pipeline hidden in the decode stage.
+\end{itemize}
+
+The original processors remain the reference for what those machines could do with a given number of cycles. They are not instantiated beside the hart. One fetch path, one decode, one writeback.
+
+\section{Why the peripherals survive the change of processor}
+
+A video display processor does not become simpler because the CPU is RISC-V. Sprites, tiles, blanking, and a shared memory port are the same problem on an MSX-compatible board as they were on the original. Writing them in Bluespec forces the arbitration into rules that the compiler schedules. That is the infrastructure BX-32 and BX-64 reuse when the picture is no longer a tilemap and the bus is no longer eight bits wide.
+
+The same is true of the sixteen-bit machine. A blitter is a programmed DMA with a small arithmetic step. SVM-16 can perform the arithmetic in the vector unit, or the blitter can remain a peripheral master. Both organisations are legal on BX-16. The book recommends keeping the peripheral master for compatibility of timing, and using the vector unit for new software.
+
+\section{The four-machine contract}
+
+\begin{table}[htbp]
+\centering
+\caption{What each machine is for.}
+\begin{tabular}{@{}llp{6.2cm}@{}}
+\toprule
+Machine & Can replace & Vector contract \\
+\midrule
+BX-8  & an MSX   & SVM-8, integer, EEW 8 \\
+BX-16 & an Amiga & SVM-16, integer, EEW 8 and 16 \\
+BX-32 & ---      & Zve32f, with FP32 \\
+BX-64 & ---      & V or Zve64d, with FP64 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+BX-32 and BX-64 do not pretend to be a Saturn, a Dreamcast, a PlayStation~2, or a Nintendo~64. They keep the organisational lessons of those machines: more than one hart, local memory, and a vector unit wide enough for geometry. Their compatibility target is the RISC-V specification, not a cartridge port.

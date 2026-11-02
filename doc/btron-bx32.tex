@@ -23,7 +23,7 @@
 \title{\textbf{Clean Architectural Revival of the Sega Saturn\\
 and Dreamcast on FPGA:\\
 A 32-bit RISC-V Vector Design in Bluespec SystemVerilog\\
-(\texttt{btron-bx32} / VEX BX-32)}}
+(\texttt{btron-bx32} / Zve32f)}}
 
 \author{
   Independent Systems Architecture Study\\
@@ -37,7 +37,7 @@ A 32-bit RISC-V Vector Design in Bluespec SystemVerilog\\
 \maketitle
 
 \begin{abstract}
-This article presents a respectful engineering analysis and a concrete proposal for the clean revival of the computational organisation of the Sega Saturn and the Sega Dreamcast. Both platforms relied on Hitachi SuperH RISC cores---dual SH-2 processors in the Saturn and a single high-performance SH-4 with a powerful graphics-oriented floating-point unit in the Dreamcast. These designs remain instructive examples of 32-bit RISC efficiency, dual-processor coordination, and specialised vector/matrix acceleration under commercial constraints. Rather than cycle-accurate emulation or commercial reverse engineering, we advocate a first-principles reconstruction: one or two 32-bit RISC-V cores equipped with a practical Vector Extension (VEX / RVV subset), realised in synthesizable Bluespec SystemVerilog (BSV) and targeted at contemporary FPGA platforms. The resulting architecture preserves the essential dual-core and vector-math spirit of the originals while replacing the proprietary SuperH cores with an open, modern ISA. VEX on BX-32 is the direct continuation of the VEX model first defined for the 16-bit R1600; the same length-agnostic programming style and element-type hierarchy are retained. The work is offered as a pure computer-architecture exercise---one that Sega and Hitachi engineers of the era may find technically interesting and, we hope, worthy of professional respect.
+This article presents a respectful engineering analysis and a concrete proposal for the clean revival of the computational organisation of the Sega Saturn and the Sega Dreamcast. Both platforms relied on Hitachi SuperH RISC cores---dual SH-2 processors in the Saturn and a single high-performance SH-4 with a powerful graphics-oriented floating-point unit in the Dreamcast. These designs remain instructive examples of 32-bit RISC efficiency, dual-processor coordination, and specialised vector/matrix acceleration under commercial constraints. Rather than cycle-accurate emulation or commercial reverse engineering, we advocate a first-principles reconstruction: one or two 32-bit RISC-V cores equipped with Zve32f, the first ratified vector subset in the BX ladder. The 8-bit and 16-bit machines below it are RV32I harts with narrow datapaths and the SVM-8 / SVM-16 profiles of RVV; they are not R800, 68000, or SuperH cores.
 \end{abstract}
 
 \section{Motivation and Respect for the Original Designs}

@@ -1,0 +1,22 @@
+\chapter{Checklist against RVV 1.0}
+
+For each instruction you implement, the encoding matches the specification, the register numbers are the specification's, and an illegal SEW traps. This list is the minimum the travelling tests exercise. It is not the whole of V.
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Configuration: \texttt{vsetvl}, \texttt{vsetvli}, and \texttt{vsetivli} where the card includes it.
+  \item \texttt{vill} on an illegal SEW or LMUL, without a surprising update of \texttt{vl}.
+  \item Unit-stride load and store at every legal EEW.
+  \item Stride load and store from SVM-16 upward.
+  \item Indexed load and store from BX-32 upward.
+  \item Integer add, subtract, logic, shift, vector-vector and vector-scalar.
+  \item Compare and mask logicals where the card includes them.
+  \item Saturating add where the card includes it, with \texttt{vxsat}.
+  \item Widening multiply and narrowing shift on SVM-16, BX-32, and BX-64.
+  \item Integer reduction and slide-by-one from SVM-16 upward.
+  \item FP32 fused multiply-add and conversions on BX-32 and BX-64.
+  \item FP64 fused multiply-add on BX-64.
+  \item Undisturbed tail and inactive mask elements.
+  \item \texttt{vl} = 0 retires nothing and does not trap.
+  \item No claim of Zve32x on BX-8 or BX-16.
+  \item No V bit unless every instruction required by V is present.
+\end{itemize}

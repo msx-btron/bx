@@ -1,0 +1,70 @@
+\documentclass[11pt,a4paper]{memoir}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\setlrmarginsandblock{2.6cm}{2.6cm}{*}
+\setulmarginsandblock{2.6cm}{2.8cm}{*}
+\checkandfixthelayout
+
+\setsecnumdepth{subsection}
+\settocdepth{subsection}
+\chapterstyle{ger}
+\pagestyle{ruled}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  backgroundcolor=\color{black!4},
+  literate={~}{{\textasciitilde}}1
+}
+
+\newenvironment{spec}{\begin{quote}\small}{\end{quote}}
+
+\title{Scalable RVV Design and Architecture\\from 8-bit to 64-bit}
+\author{BTRON BX Series\\Independent Systems Architecture Study}
+\date{November 2026}
+
+\begin{document}
+\frontmatter
+\maketitle
+\tableofcontents
+\include{front/preface}
+\include{front/note}
+\include{front/notation}
+
+\mainmatter
+\include{chapters/ch04-machines}
+\include{chapters/ch05-ladder}
+\include{chapters/ch06-profiles}
+\include{chapters/ch07-state}
+\include{chapters/ch08-instructions}
+\include{chapters/ch09-fpga}
+\include{chapters/ch10-bx8}
+\include{chapters/ch11-bx16}
+\include{chapters/ch12-bx32}
+\include{chapters/ch13-bx64}
+\include{chapters/ch14-bsv}
+\include{chapters/ch15-bringup}
+\include{chapters/ch16-tests}
+\include{chapters/ch17-budget}
+
+\backmatter
+\include{back/profile-card}
+\include{back/checklist}
+\include{back/compat}
+\include{back/exercises}
+\include{back/glossary}
+\include{back/references}
+\end{document}

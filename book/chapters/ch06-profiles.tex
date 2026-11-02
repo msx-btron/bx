@@ -1,0 +1,50 @@
+\chapter{SVM Profiles and the Ratified Vector Extensions}
+
+\section{The names}
+
+SVM stands for scalar, vector, and matrix. In this book the scalar part is the RISC-V integer hart, the vector part is a profile of RVV, and the matrix part is an optional custom extension called Xsvm. Xsvm is not implemented unless the elaboration parameter asks for it. The profiles themselves do not include matrix instructions.
+
+\begin{table}[htbp]
+\centering
+\caption{The ladder as a contract.}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & BX-8 & BX-16 & BX-32 & BX-64 \\
+\midrule
+Name & SVM-8 & SVM-16 & Zve32f & V or Zve64d \\
+XLEN & 32 & 32 & 32 & 64 \\
+Datapath & 8 & 16 & 32 & 64 \\
+ELEN & 8 & 16 & 32 & 64 \\
+VLEN & 32 & 128 & $\ge 128$ & $\ge 128$ \\
+Legal EEW & 8 & 8, 16 & 8, 16, 32 & 8, 16, 32, 64 \\
+FP & no & no & FP32 & FP32 and FP64 \\
+Ratified claim & no & no & yes & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+VLEN on BX-32 and BX-64 may be 256 or 512. The minimum is 128 because that is what the application extension requires, and because Zve32f implementations in this book are built to the same floor so that a BX-32 image can later be compared with a BX-64 image on the same vector length.
+
+\section{Why SVM-8 is not Zve32x}
+
+Zve32x requires element widths 8, 16, and 32, a minimum VLEN of at least ELEN, and the integer vector instruction set that goes with those widths. SVM-8 implements one of those widths. Reporting Zve32x from BX-8 would tell a compiler that \texttt{vsetvl} with SEW=32 is legal. It is not. The machine raises an illegal-instruction exception.
+
+SVM-16 fails the same test one step higher. SEW=32 is illegal. SEW=8 and SEW=16 are legal. The machine also implements the saturating and widening integer operations used by sixteen-bit kernels, still under the OP-V encoding.
+
+From BX-32 the claim is allowed. Zve32f adds single-precision floating point on top of the integer widths through 32. BX-64 claims V when VLEN is at least 128 and the double-precision vector operations are present; otherwise it claims Zve64d and says so.
+
+\section{The \texttt{misa} rule}
+
+On BX-8 and BX-16, \texttt{misa} reports RV32I and the extensions you have actually implemented among M, A, and the CSR set. It does not set the V bit. Software discovers SVM-8 or SVM-16 through a documented custom CSR, or through an illegal-instruction probe of SEW, whichever you publish in the profile card. Pick one and test it.
+
+On BX-32, \texttt{misa} may set the bits for the extensions you implement, and the vector discovery path is the standard one for Zve32f. On BX-64 the V bit is set only if you implement V, not merely a subset you hope to finish later.
+
+\section{Xsvm}
+
+Two operations recur in the geometry the sixteen-bit machine is asked to run: a four-by-four matrix times a vector, and a three-element cross product. RVV expresses both as short sequences. BX-16 may also offer them as custom opcodes in the custom-0 or custom-1 space, under the name Xsvm.
+
+If Xsvm is present it is an addition, not a substitute. A kernel that uses only standard OP-V must run on a BX-16 built without Xsvm. Document the opcodes in the same header that documents the discovery CSR. Do not alias them onto standard vector opcodes.
+
+\section{Fixed point without a private lane type}
+
+Sixteen-bit pixels and samples are ordinary SEW=16 integers. A product that needs more than sixteen bits is a widening multiply into a thirty-two-bit element group. A Q16.16 value, if software wants one, is that product followed by a shift. The hardware does not have a third element type for fixed point. Rounding and saturation use \texttt{vxrm} and \texttt{vxsat} where the specification already defines them, and only on the machines that implement those instructions.

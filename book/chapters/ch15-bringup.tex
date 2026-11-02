@@ -1,0 +1,29 @@
+\chapter{Bring-Up, from \texttt{vsetvl} to a Running Kernel}
+
+\section{Order}
+
+The order is the same on every profile. Do not start with the widest machine on the theory that it contains the others. Start with BX-8, where a mistake is a byte lane, and carry the passing tests upward.
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item Scalar RV32I: loads, stores, branches, and a UART or a memory-mapped trace port.
+  \item \texttt{vsetvl} of a legal SEW, reading back \texttt{vl} and \texttt{vtype}.
+  \item \texttt{vsetvl} of an illegal SEW, observing \texttt{vill} and an illegal-instruction trap on the next vector opcode.
+  \item One vector add of \texttt{vl} elements, checked against a scalar loop.
+  \item Unit-stride store and load of those elements, including \texttt{vl} shorter than a register.
+  \item A masked add, undisturbed tail, checked byte by byte or halfword by halfword.
+  \item Only then the extra instructions of the profile: widening on BX-16, FP32 on BX-32, FP64 on BX-64.
+\end{enumerate}
+
+\section{The first vector add}
+
+Use SEW equal to ELEN and LMUL equal to 1. Fill two registers by stores to memory and a unit-stride load, or, before loads work, by a debug write to the file that is not part of the architecture and is compiled out of the board image. Prefer the load as soon as it exists, so that the debug write does not become a second programming model.
+
+Compare the destination against the sum computed on the host in the testbench. Do this for \texttt{vl} from 0 through VLMAX. \texttt{vl} of 0 must retire no elements and must not raise a trap. It is the usual end condition of a strip-mined loop, and implementations get it wrong when the lane enable is a decrement that underflows.
+
+\section{Bus contention on the compatible machines}
+
+On BX-8, repeat the fill while the video processor is fetching a scanline. The architectural result must match the quiet-bus result. The cycle count may be longer. On BX-16, repeat a sixteen-bit fill while the audio master takes its reserved slots. A test that passes only with the other masters held in reset has not shown that the machine can replace an MSX or an Amiga. It has shown that the arithmetic works.
+
+\section{When to leave the simulator}
+
+Leave the simulator after the fill test and the illegal-SEW test pass on the profile you intend to synthesise. Synthesis of a vector unit that fails \texttt{vl}=0 is a long way to learn a one-line bug. The budget chapter assumes the tests are already green in simulation.

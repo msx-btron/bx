@@ -1,0 +1,41 @@
+\chapter{The RISC-V Ladder, from an 8-bit Bus to a 64-bit Hart}
+
+\section{Datapath width is not XLEN}
+
+RISC-V defines integer registers of thirty-two or sixty-four bits. It does not define a base with eight-bit or sixteen-bit registers. BX-8 and BX-16 honour that. XLEN is 32. The instructions in memory are the ordinary thirty-two-bit RV32I encodings. The ALU and the data bus are narrower than XLEN, so a word operation takes several cycles.
+
+On BX-8 a load word is four bus beats, a load halfword is two, and a load byte is one. Shifts and adds iterate over bytes, low byte first, with the carry kept in a one-bit register between beats. The architectural result in the integer register is identical to a single-cycle RV32I implementation. Only the latency changes.
+
+On BX-16 the beat is a halfword. A load word is two beats. The vector element width of SVM-16 matches the bus: eight or sixteen bits. A unit-stride vector load moves VLEN/16 halfwords when SEW is 16, and the bus can supply one halfword per beat.
+
+BX-32 is the first member whose datapath, bus, and XLEN are all thirty-two bits. BX-64 widens XLEN itself to 64 and implements RV64I, together with the floating-point and vector extensions its profile names.
+
+\section{One decode for scalar and vector}
+
+Vector instructions are not a coprocessor opcode map glued beside the integer decode. They are OP-V in the standard encoding. The decoder classifies a parcel as integer, load, store, configuration, or vector arithmetic, and steers it. On the narrow machines the vector lanes are as narrow as the bus. A VLEN of 32 bits with eight-bit elements is four lanes, and four lanes of eight bits fit in a small FPGA without a second clock domain.
+
+This is why a kernel written for SVM-8 is still RVV. The assembler emits \texttt{vsetvli} and \texttt{vadd.vv}. BX-32 will execute that parcel if the requested SEW is legal there. The ladder is a sequence of legal SEWs, not a sequence of source translators.
+
+\section{Latency you should publish}
+
+Publish, next to the profile card, the cycle count of the operations a programmer will feel.
+
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Operation & BX-8 & BX-16 & BX-32 \\
+\midrule
+ALU on XLEN bits & 4 beats & 2 beats & 1 \\
+Unit-stride beat & 1 byte & 1 halfword & 1 word \\
+\texttt{vsetvl} & 1 & 1 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Vector arithmetic latency is a parameter of the lane pipeline, not of XLEN. Keep \texttt{vsetvl} single-cycle. Configuration is how software discovers VLMAX, and hiding it in a long pipeline teaches the wrong lesson.
+
+\section{What moves upward unchanged}
+
+A strip-mined loop that only uses EEW=8 is legal on every machine in the book. A loop that uses EEW=16 is legal from BX-16 upward. A loop that uses EEW=32 or FP32 is legal from BX-32 upward. A loop that uses EEW=64 or FP64 is legal on BX-64.
+
+The source does not change. The elaborated hardware refuses, at \texttt{vsetvl}, any SEW above its ELEN. That refusal is the entire compatibility story between profiles. There is no mode bit that widens a machine beyond the profile on its card.

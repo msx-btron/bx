@@ -1,0 +1,30 @@
+\chapter{Profile Card}
+
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & SVM-8 & SVM-16 & Zve32f & V / Zve64d \\
+\midrule
+Machine & BX-8 & BX-16 & BX-32 & BX-64 \\
+Replaces & MSX & Amiga & --- & --- \\
+XLEN & 32 & 32 & 32 & 64 \\
+Datapath & 8 & 16 & 32 & 64 \\
+ELEN & 8 & 16 & 32 & 64 \\
+VLEN & 32 & 128 & $\ge 128$ & $\ge 128$ \\
+EEW & 8 & 8, 16 & 8--32 & 8--64 \\
+FP & --- & --- & FP32 & FP32, FP64 \\
+\texttt{misa}.V & no & no & per spec & only if V \\
+Xsvm & no & optional & optional & off on V image \\
+Tail policy & und. & und. & und. & und. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Discovery on SVM-8 and SVM-16 is the custom CSR you name here, not the V bit.
+
+\bigskip
+\noindent Custom CSR address: \rule{4cm}{0.4pt}\\
+\noindent \texttt{vsetivli} on SVM-8: yes / no\\
+\noindent Indexed load from: BX-32\\
+\noindent \texttt{vstart} precise from: BX-64 with a page table\\
+\noindent Lanes in the first image: 1, 4, 4, 2

@@ -1,0 +1,41 @@
+\chapter{Vector State}
+
+\section{The register file}
+
+Every machine in this book has thirty-two vector registers, numbered 0 through 31. Register 0 is also the mask. When an instruction is masked, bit $i$ of \texttt{v0} says whether element $i$ is active. Implementing a subset of the registers would change the encoding, so the file is always thirty-two deep even when each register is only thirty-two bits wide, as on BX-8. That file is 128 bytes. On BX-16, VLEN is 128 and the file is 512 bytes. Both sizes are small next to a video memory.
+
+Registers are not grouped in the SVM-8 profile. LMUL stays 1. SVM-16 allows LMUL in $\{1,2,4,8\}$ for widening destinations, because a sixteen-bit multiply that widens needs a thirty-two-bit place to land, and that place is a register group. If you would rather forbid LMUL greater than 1 on SVM-16, widening stores its high half in an explicit second destination named by the instruction you implement. Pick one, write it on the profile card, and do not mix them.
+
+\section{Configuration registers}
+
+The programmer-visible configuration is the standard one.
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vtype} holds the selected element width, LMUL, and the tail and mask policy bits.
+  \item \texttt{vl} holds the number of elements to process.
+  \item \texttt{vstart} holds the element at which a partially completed instruction would resume. On these machines instructions either complete or trap before they write, and \texttt{vstart} is zero whenever software is allowed to read it. State that in the profile card. It is a legal simplification if you never resume a trapped vector instruction in the middle.
+  \item \texttt{vxrm} and \texttt{vxsat} exist on any machine that implements fixed-point rounding or saturation. SVM-8 may omit them if it omits those instructions.
+\end{itemize}
+
+\texttt{vsetvl} and \texttt{vsetvli} are the only way to change \texttt{vtype} and \texttt{vl}. The instruction writes the chosen \texttt{vl} to the integer destination register as well as to the CSR. That write is how a strip-mined loop learns how many elements it was granted.
+
+\section{Legality at configuration time}
+
+The decoder of \texttt{vsetvl} checks SEW against ELEN and LMUL against the profile. An illegal request sets the \texttt{vill} bit of \texttt{vtype} and does not change \texttt{vl}, following the specification's rule for an invalid configuration. Subsequent vector instructions then trap as illegal. Do not leave \texttt{vill} clear and fail later inside a lane. Software cannot recover a clean meaning from a lane that has already consumed a beat of the bus.
+
+\begin{spec}
+On SVM-8, SEW must be 8 and LMUL must be 1.\\
+On SVM-16, SEW must be 8 or 16.\\
+On Zve32f, SEW must be 8, 16, or 32.\\
+On V or Zve64d, SEW must be 8, 16, 32, or 64.
+\end{spec}
+
+\section{Tail and mask policy}
+
+The specification allows undisturbed and agnostic policies for inactive elements and for the tail past \texttt{vl}. Agnostic is easier in hardware: inactive lanes may write anything. Undisturbed is what a careful blit wants, because the tail of a scanline must stay what it was.
+
+Implement undisturbed for the body of this book. It costs a read of the old destination element and a select. On an eight-bit lane that read is cheap. Publishing agnostic as well is optional and must be tested; a single policy, undisturbed, is the one the exercises assume.
+
+\section{Precise traps}
+
+A vector load that faults does so with \texttt{vstart} naming the first element that did not complete, or the instruction does not start the bus transaction until the whole access is known to be mapped. The second option is the one these machines take on BX-8 and BX-16, where the address map is a flat peripheral space without demand paging. BX-64, if it runs with a page table, uses the first option and a documented \texttt{vstart}. The profile card says which.

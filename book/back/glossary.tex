@@ -1,0 +1,15 @@
+\chapter{Glossary}
+
+\begin{description}[leftmargin=1.5em,style=nextline]
+  \item[BX-8] MSX-compatible FPGA machine. RV32I, eight-bit data path, SVM-8.
+  \item[BX-16] Amiga-compatible FPGA machine. RV32I, sixteen-bit data path, SVM-16.
+  \item[BX-32] RV32 machine with Zve32f.
+  \item[BX-64] RV64 machine with Zve64d or V.
+  \item[Datapath width] Width of the integer ALU and the data bus. Not XLEN.
+  \item[ELEN] Widest vector element the implementation supports.
+  \item[Profile] A named, unratified subset of RVV behaviour defined by this book: SVM-8 or SVM-16.
+  \item[SVM] Scalar--vector--matrix. The scalar hart plus an RVV profile; the matrix operations are Xsvm and are optional.
+  \item[VLEN] Number of bits in one of the thirty-two vector registers.
+  \item[XLEN] Width of an integer register. 32 until BX-64, then 64.
+  \item[Xsvm] Optional custom-0 geometry instructions. Not part of a profile. Off on a V-claiming image.
+\end{description}

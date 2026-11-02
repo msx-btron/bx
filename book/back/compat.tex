@@ -1,0 +1,28 @@
+\chapter{MSX and Amiga Compatibility Checklist}
+
+\section{BX-8, in place of an MSX}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Eight-bit data bus shared by the hart's data port, the video display processor, and the sound generator.
+  \item Slot and cartridge signals documented against the MSX reference you follow.
+  \item Video modes you claim: register map, timing, and a captured frame compared to that reference.
+  \item Sound: tone, noise, and envelope registers, and a captured waveform.
+  \item Keyboard and joystick ports in the documented map.
+  \item Video refresh can take the bus during a vector load; the picture remains stable; the load's bytes match a quiet-bus run.
+  \item The hart is RV32I with SVM-8. Guest binaries of the original processor run only through software you have written for that purpose, and that software is named on the card.
+\end{itemize}
+
+\section{BX-16, in place of an Amiga}
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Sixteen-bit shared bus with hart, blitter-class master, video, and audio.
+  \item A reserved-slot or priority rule for audio, with a measured worst-case wait.
+  \item Display fetch can be driven from a programmed list.
+  \item Blitter-class master, if present, is a peripheral, not a second instruction set.
+  \item A vector fill of halfwords matches a scalar reference while audio slots are taken.
+  \item The hart is RV32I with SVM-16. Xsvm is off on the compatibility image.
+\end{itemize}
+
+\section{BX-32 and BX-64}
+
+These images are compatible with the RISC-V strings on their profile cards, and with the travelling tests. They are not MSX or Amiga replacements. Their checklist is the RVV checklist plus the memory map you publish.

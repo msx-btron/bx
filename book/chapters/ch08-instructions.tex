@@ -1,0 +1,54 @@
+\chapter{The Instruction Classes}
+
+\section{A minimum that is still RVV}
+
+Each profile implements a rectangle of the vector specification, not a sketch of it. Inside that rectangle every instruction you claim is the standard one: same encoding, same register numbers, same exception conditions. Outside the rectangle the instruction is illegal.
+
+The rectangle grows as follows.
+
+\section{Configuration}
+
+Both \texttt{vsetvl} and \texttt{vsetvli} are required on every machine. \texttt{vsetivli} is required from SVM-16 upward. Immediate configuration is how small kernels avoid a spare integer register, and BX-8 may include it too if the decoder is already wide enough. If BX-8 omits it, the profile card says so.
+
+\section{Loads and stores}
+
+Unit-stride loads and stores of the legal element widths are required everywhere. The address is a byte address in the integer register, as in the specification. On BX-8 the bus moves one byte per beat, so a unit-stride load of \texttt{vl} elements occupies \texttt{vl} beats. On BX-16 a SEW=16 unit-stride load occupies \texttt{vl} halfword beats when the address is aligned, and two byte beats per element when it is not. Alignment faults follow the scalar policy of the hart: if scalar misaligned accesses are allowed, vector ones are allowed, and they take the extra beats.
+
+Constant-stride loads are required from SVM-16 upward. Indexed loads are required from BX-32 upward. They are the gathers a texture or a sparse blit actually uses. Leaving them out of SVM-8 keeps the first load unit a counter and an address adder.
+
+Segment loads are not required in any profile in this book. A compiler that emits them will trap. Say so next to the profile card.
+
+\section{Integer arithmetic}
+
+For every legal EEW the machine implements vector add, subtract, and, or, xor, and the shifts, in both vector-vector and vector-scalar forms. Compare and min/max are required from SVM-16 upward. SVM-8 includes compare, because a mask is the natural way to clip a byte.
+
+Widening multiply is required on SVM-16 for SEW=8 producing EEW=16, and for SEW=16 producing EEW=32. The thirty-two-bit destination is the reason SVM-16 allows a grouped destination even though ELEN is 16. Narrowing shifts are required on the same machine so that a widened product can return to a sixteen-bit pixel.
+
+Saturating add and subtract are required on SVM-16 and on BX-32. SVM-8 includes saturating add only. Saturation sets \texttt{vxsat} when that CSR is implemented.
+
+\section{Reductions, masks, and permutes}
+
+An integer add reduction is required from SVM-16 upward. It is how a dot product of sixteen-bit samples finishes without a scalar loop over lanes. Slides by one element are required from SVM-16 upward. Gather-permute within a register is required from BX-32 upward.
+
+Mask logical operations and mask population count are required wherever compare is required. The mask is \texttt{v0}. There is no second mask file.
+
+\section{Floating point}
+
+No floating-point vector instruction is legal on BX-8 or BX-16. The scalar hart on those machines also omits the F and D extensions, so a compiler for the replacement MSX or Amiga is an integer compiler plus the vector profile.
+
+BX-32 implements the single-precision vector operations of Zve32f: add, subtract, multiply, fused multiply-add, min, max, and compare, plus the conversions between SEW=32 integers and FP32. BX-64 adds the double-precision set required by Zve64d, and the rest of V if that is the claim.
+
+\section{Custom geometry}
+
+Xsvm, when elaborated, adds two instructions in custom-0:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item a four-by-four matrix held in \texttt{v0}--\texttt{v3} times a vector in \texttt{vs2}, result in \texttt{vd};
+  \item a three-element cross product of \texttt{vs2} and \texttt{vs1} into \texttt{vd}.
+\end{itemize}
+
+Both operate at the current SEW and honour \texttt{vl}. They are illegal on a build that did not ask for Xsvm. They are illegal on BX-8 even if someone sets the parameter, because a four-by-four of bytes is not the operation the extension is for. The parameter is honoured from BX-16 upward only.
+
+\section{Instructions you will be tempted to skip}
+
+Division, square root, and the transcendental estimates are not in SVM-8 or SVM-16. They are optional on BX-32 and required on BX-64 only to the extent the claimed extension requires them. A reciprocal estimate with a Newton step in software is an acceptable published gap on BX-32 if the profile card lists it. It is not an acceptable gap if you have set the V bit.

@@ -1,0 +1,46 @@
+\chapter{Lanes, Register Files, and Memory on an FPGA}
+
+\section{How many lanes}
+
+A lane is a slice of the vector register file plus the functional units that operate on one element per cycle. The number of lanes does not change the architecture. It changes how many elements retire per cycle.
+
+\begin{center}
+\begin{tabular}{@{}lccp{5.5cm}@{}}
+\toprule
+Machine & VLEN & Suggested lanes & Reason \\
+\midrule
+BX-8  & 32  & 1 or 4 & Four eight-bit lanes finish a register in one cycle. \\
+BX-16 & 128 & 4 & Four sixteen-bit lanes match a modest DSP column. \\
+BX-32 & 128 & 4 & One FP32 unit per lane is already a large board image. \\
+BX-64 & 128 or 256 & 2 or 4 & FP64 is the expensive unit; fewer lanes first. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Start with one lane on the first elaboration of each profile. Widen after the tests in Chapter~\ref{ch:tests} pass. A parameter \texttt{NLANES} that must divide VLEN/SEW for every legal SEW is the usual constraint. On SVM-16, VLEN is 128 and SEW may be 8, so eight elements of eight bits fill a register: \texttt{NLANES} should divide 8. Four is the comfortable choice.
+
+\section{The register file}
+
+Each lane owns a slice of every vector register. With four lanes and VLEN 128, a lane holds 32 bits of each register. Reads for a vector-vector instruction are two ports; the write back is a third. A mask read is a fourth, narrower port, or a bit collected from \texttt{v0}'s slice.
+
+On an FPGA, implement the file as distributed memory for SVM-8 and as block RAM for SVM-16 and above if the port requirement fits the RAM primitive. If the primitive is dual-port and you need three accesses, bank the file by element and accept a one-cycle bubble when two reads and a write collide, or replicate the file. Replication is the smaller surprise on a teaching design. State the choice in the profile card under ``microarchitecture'', not under ``architecture''. Software must not be able to tell, except by cycle count.
+
+\section{Chaining}
+
+Chaining means a consumer starts when the first element of its producer is ready, rather than when the whole vector has retired. It is worth building on BX-32 and BX-64, where floating-point latency is several cycles and kernels are long. It is not worth building on BX-8. A four-element register finishes before a chain controller pays for itself.
+
+The in-order rule for BX-8 and BX-16 is: one vector instruction in the arithmetic unit at a time, loads and arithmetic allowed to overlap only when the load target is not a source of the arithmetic instruction. Scoreboard those three register numbers. That is enough hazard logic for the first board.
+
+\section{Memory width}
+
+Match the vector memory port to the bus you already have for the peripherals, not to VLEN.
+
+On the MSX-compatible machine the bus is eight bits. The vector load unit is a byte counter. On the Amiga-compatible machine the bus is sixteen bits and is shared with video and blitter masters. The vector load unit requests halfwords through the same arbiter as those masters. Do not add a private wide path from the vector file to memory on BX-16; it would no longer be the bus an Amiga-compatible board has.
+
+On BX-32 and BX-64 a dedicated wider port is appropriate, because those machines are not standing in for an eight-bit or sixteen-bit chipset. Even there, size the port to a power of two beats of the element width you care about, and measure utilisation with the fill test before widening it again.
+
+\section{What to read in other people's cores}
+
+Ara shows a lane-based file, a central sequencer, and a slide unit, on a full application vector extension, in a process where a lane's area is a published number. Spatz shows that a small file and a shared scratchpad can be enough when the data are already local. Vicuna shows a coprocessor interface and a configurable set of pipelines aimed at Zve32x.
+
+None of them is a Bluespec description of SVM-8, and none of them is an MSX or Amiga bus. Read them for the shape of a lane and for the list of hazards. Write your own rules against the profile card. Importing a large SystemVerilog vector unit beside an eight-bit peripheral fabric will not produce a machine that can replace an MSX.

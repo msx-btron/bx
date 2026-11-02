@@ -1,0 +1,61 @@
+\chapter{BX-8: An MSX-Compatible Machine with SVM-8}
+\label{ch:bx8}
+
+\section{The board-level picture}
+
+BX-8 is a single FPGA image that can replace an MSX in the narrow sense of Chapter~4. The parts a cartridge and a display see are the slot signals, the video display processor, the sound generator, the keyboard and joystick ports, and the memory map. The part that executes instructions is an RV32I hart. Its data path is eight bits. Its vector unit is SVM-8.
+
+A word in an integer register is still thirty-two bits. The program counter advances by four when the parcel is an ordinary instruction, because the encoding is thirty-two bits even though the data bus is not. Instruction memory may be a separate thirty-two-bit port. Data memory and I/O share the eight-bit bus with the video processor. That split is the usual way to keep fetch off the peripheral bus, and it does not change the architectural width of a load.
+
+\section{The hart}
+
+Fetch reads a thirty-two-bit parcel. Decode recognises RV32I and the OP-V opcodes of SVM-8. Execute for an integer instruction runs four byte beats through an eight-bit ALU, with a carry flop between beats. Writeback commits the whole register or, on a fault, commits nothing.
+
+There is no separate Z80 or R800 pipeline. Software written for those processors runs only if you have written an interpreter or a translator in RV32I. The peripherals do not know which interpreter is running. They answer to port writes in the MSX map.
+
+The multiplier, if you include the M extension, is a sequenced eight-bit multiplier, not a DSP that produces a thirty-two-bit product in one cycle. Leaving M out of the first image is acceptable. Vector byte adds cover the inner loops that would otherwise have wanted a fast scalar multiply.
+
+\section{SVM-8}
+
+\begin{spec}
+ELEN = 8, VLEN = 32, thirty-two registers, LMUL = 1.\\
+Legal SEW = 8 only.\\
+Required: \texttt{vsetvl}, \texttt{vsetvli}, unit-stride load and store,\\
+add, subtract, logic, shifts, compare, saturating add, splat (\texttt{vmv.v.x}),\\
+vector-vector and vector-scalar forms.\\
+Undisturbed tail and mask.\\
+No floating point, no indexed load, no Xsvm.
+\end{spec}
+
+Four elements fill a register. With four lanes, a vector add retires in one cycle after the sources are read. With one lane, it retires in four. Either organisation passes the same architectural tests.
+
+The load unit takes the base address from an integer register, checks that \texttt{vl} bytes lie in a mapped region, and then consumes \texttt{vl} bus beats when the arbiter grants them. Video refresh has priority on that arbiter. A vector load that loses the bus for a scanline simply waits. That wait is the MSX-compatible behaviour worth preserving: the picture does not tear because a copy loop held the bus.
+
+\section{A kernel that is legal everywhere}
+
+\begin{lstlisting}
+# fill n bytes at a0 with the byte in a1
+# SVM-8 and every wider profile
+loop:
+    vsetvli t0, a0, e8, m1, tu, mu
+    vmv.v.x v1, a1
+    vse8.v  v1, (a2)
+    add     a2, a2, t0
+    sub     a0, a0, t0
+    bnez    a0, loop
+\end{lstlisting}
+
+The listing uses a vector-scalar add as a broadcast so that the first implementation does not depend on \texttt{vmv.v.x}. When you add the move instruction, prefer it. The shape of the loop is the one Chapter~\ref{ch:tests} runs on all four machines: set VL, operate, store, advance, repeat.
+
+\section{What you elaborate}
+
+\begin{lstlisting}
+typedef enum { SVM8, SVM16, ZVE32F, V64 } Profile;
+Profile profile = SVM8;
+Integer elen = 8;
+Integer vlen = 32;
+Integer lanes = 1;
+Bool xsvm = False;
+\end{lstlisting}
+
+The same package, with different parameters, is BX-16 and the later machines. BX-8 is the parameter set in which most of the package is illegal-instruction logic rather than arithmetic.

@@ -1,0 +1,11 @@
+\chapter{Preface}
+
+This book is a construction manual for one family of FPGA machines. The family is called BX. Each member is a RISC-V hart whose data path grows from eight bits to sixty-four, and whose vector unit grows with it under the RISC-V Vector Extension.
+
+The eight-bit member is built so that it can take the place of an MSX: the slots, the video display processor, the sound generator, and the memory map stay recognisable. The sixteen-bit member is built so that it can take the place of an Amiga: a sixteen-bit bus, chipset-style shared memory, and the traffic patterns of a blitter and a copper. In both cases the processor that issues the instructions is RISC-V. The original machines remain the reference for peripherals and for the work the software has to do. The hart is the part that stands in their place.
+
+Above those two machines the book stops speaking of profiles and starts speaking of ratified extensions. BX-32 implements Zve32f. BX-64 implements the application extension V, or at least Zve64d. A program written against the narrow profiles is still an RVV program. It uses the same registers, the same configuration instruction, and the same opcode map. What changes is the widest element the machine accepts.
+
+The text is for a reader who will write the register transfer logic, preferably in Bluespec SystemVerilog, and who will synthesise it. It is not a programmer's companion to the vector intrinsics, and it is not a history of the home computers whose peripheral sets the machines keep.
+
+The architectural choices that the rest of the book treats as fixed are these. The integer register width, XLEN, is 32 on BX-8, BX-16, and BX-32, and 64 on BX-64. There is no separate eight-bit or sixteen-bit base instruction set; the narrowness is in the ALU, the bus, and the vector element length. The vector file always has thirty-two registers. Geometry operations that the vector specification does not define live in an optional custom extension and are silent unless a board asks for them.

@@ -45,9 +45,8 @@
 \renewcommand{\headrulewidth}{0.4pt}
 
 \title{
-A Natural 16-bit Evolutionary Path for the MSX turboR:\\
-The BX-8 3D and BX-16 Architectures\\
-(with Authoritative VEX Definition)
+BX-16: RV32I with a 16-bit Datapath\\
+and the SVM-16 Profile of RVV
 }
 
 \author{
@@ -63,8 +62,10 @@ B-MSX / tronMSX Project\\
 \maketitle
 
 \begin{abstract}
-We present a coherent, hardware-compatible evolutionary path for the MSX turboR architecture that extends the R800 into a practical 16-bit platform capable of supporting software 3D rendering (tinyGL-class workloads) while preserving full binary and bus compatibility with existing MSX software and cartridges. Two complementary designs are defined: BX-8 3D, a minimal-change extension of the classic turboR that adds a tightly-coupled 16-bit vector coprocessor, and BX-16, a dual-processor hybrid system in which two identical 16-bit cores (one scalar, one vector/GPU) deliver substantially higher 3D performance. Both designs reuse a single carefully specified 16-bit core (R1600) with a clean orthogonal ISA and a 4-wide SIMD vector extension named \textbf{VEX}. VEX is the foundational vector architecture of the entire BTRON BX series; its programming model, configuration mechanism and element-type hierarchy are deliberately designed so that kernels remain source-compatible when the design is later retargeted to the RVV / Zve* subsets used by BX-32 and BX-64. The proposal is grounded in the existing open-source BX-8 FPGA implementation and the tronMSX verifying emulator, and is offered as a practical alternative to more radical departures from the MSX architectural lineage.
+BX-16 replaces both the R800 and any 68000-class host with one RISC-V hart. The architectural ISA is RV32I (XLEN\,=\,32). The ALU, the local data bus, and the vector element width are 16 bits. The vector unit is SVM-16, a profile of RVV~1.0: 32 vector registers, standard OP-V encodings, \texttt{vsetvl}, ELEN\,=\,16, VLEN\,=\,128, legal EEW of 8 and 16 only. Widening multiplies produce 32-bit results in a register group. Geometry operations that used to be single VEX opcodes (\texttt{VMAT4VEC}, \texttt{VCROSS}) are optional \texttt{Xsvm} custom instructions, not part of the profile. Z80, R800, and 68000 binaries are not executed. MSX and Amiga-class peripherals may still be attached to the bus. The private R1600 encoding and the 16-register VEX file described in earlier drafts of this note are withdrawn; they are not RVV.
 \end{abstract}
+
+\noindent\textbf{Supersession.} Sections below that still name the R800, the R1600, or VEX record the previous proposal. Where they conflict with this abstract, the abstract wins. In particular there is no binary-compatible Z80 mode and no second proprietary core.
 
 \tableofcontents
 \newpage

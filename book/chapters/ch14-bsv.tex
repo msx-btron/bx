@@ -1,0 +1,52 @@
+\chapter{One Bluespec Description, Four Profiles}
+
+\section{Parameters}
+
+The vector unit is one Bluespec package. The profile is an elaboration parameter, not a source fork.
+
+\begin{lstlisting}
+typedef struct {
+  Integer elen;
+  Integer vlen;
+  Integer lanes;
+  Bool    fp32;
+  Bool    fp64;
+  Bool    indexed;
+  Bool    xsvm;
+  Bool    claimV;
+} VecParams deriving (Bits, Eq);
+\end{lstlisting}
+
+Legal combinations are exactly the four rows of the profile card. A function \texttt{paramsOk} returns false for every other combination, and the top-level module refuses to elaborate if it returns false. In particular \texttt{fp32} is false when \texttt{elen < 32}, and \texttt{claimV} is false when \texttt{elen < 64} or \texttt{vlen < 128} or \texttt{fp64} is false.
+
+\section{Interfaces}
+
+\begin{lstlisting}
+interface VectorIssue;
+  method Action req(Parcel p, Regs rs);
+  method Bool ready;
+endinterface
+
+interface Lane;
+  method Action enq(Elem a, Elem b, Opcode op, Bool mask);
+  method ActionValue#(Elem) deq;
+endinterface
+\end{lstlisting}
+
+The issue method is called from the hart's execute stage for OP-V parcels. \texttt{ready} is false while an in-order vector instruction occupies the unit. Loads use a third interface, \texttt{VecMem}, whose \texttt{beat} method is granted by the same arbiter as the video master on BX-8 and BX-16.
+
+Scalar writeback of \texttt{vsetvl}'s destination register is a method on the hart, not a side path. The vector unit returns the granted \texttt{vl} in the result structure of \texttt{req}.
+
+\section{The configuration rule}
+
+One rule handles \texttt{vsetvl}, \texttt{vsetvli}, and, where the profile includes it, \texttt{vsetivli}. It computes the requested SEW and LMUL, compares them with \texttt{paramsOk} for this instruction, and either updates \texttt{vtype} and \texttt{vl} or sets \texttt{vill}. The rule is atomic, so a configuration cannot be observed half-written by a following vector instruction in the same schedule. Give the rule a higher urgency than the arithmetic rule so that a \texttt{vsetvl} decoded in cycle $n$ is visible to an instruction decoded in cycle $n+1$.
+
+\section{Arithmetic rules}
+
+Integer rules are always elaborated. Their bodies case on SEW and produce an illegal-instruction side effect when the SEW is outside the profile. That side effect is a second line of defence behind \texttt{vill}. The first line is the configuration rule. The second line catches an instruction that ignores \texttt{vtype}.
+
+Floating-point rules are wrapped in \texttt{if (p.fp32)} blocks so that a BX-8 elaboration does not instantiate DSP blocks for a single-precision multiplier. The same pattern gates FP64, indexed address generation, and the Xsvm decoder.
+
+\section{What SVM-8 still contains}
+
+The SVM-8 elaboration still contains the decode for opcodes it will trap: the illegal path is a rule, and the rule is source text. That is intentional. A later profile turns the same decode into a data path by changing parameters, not by pasting a second decoder. Keep the trap path in the source even when you are sure the profile will never enable the opcode. The tests of Chapter~\ref{ch:tests} include an illegal SEW on every profile, and they need something in the design that raises it.

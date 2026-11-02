@@ -1,0 +1,15 @@
+\chapter{References}
+
+\begin{enumerate}[leftmargin=1.5em]
+  \item RISC-V International. \emph{The RISC-V Instruction Set Manual, Volume I: Unprivileged Architecture.} Vector Extension, version 1.0, and the embedded vector subsets Zve32x, Zve32f, Zve64x, Zve64f, and Zve64d.
+  \item RISC-V International. \emph{Volume II: Privileged Architecture.} Machine ISA register, traps, and the illegal-instruction exception.
+  \item M.~Cavalcante, F.~Schuiki, F.~Zaruba, M.~Schaffner, L.~Benini. Ara: A 1\,GHz+ scalable RISC-V vector processor with multi-precision floating-point support in 22\,nm FD-SOI. \emph{IEEE Transactions on VLSI Systems}, 2020.
+  \item M.~Perotti, M.~Cavalcante, and others. Ara2: an RVV 1.0 vector processor, and the multi-core study built on it. \emph{IEEE Transactions on Computers}, 2024.
+  \item M.~Perotti, S.~Riedel, M.~Cavalcante, L.~Benini. Spatz: clustering compact RISC-V vector units. arXiv:2309.10137.
+  \item Vicuna and Vicuna~2. Open Zve32x, and later Zve32f, coprocessors using the CORE-V extension interface. \texttt{vproc} project.
+  \item MSX technical handbooks and datapacks, for the peripheral contract of BX-8.
+  \item Amiga hardware references for the chipset bus, blitter, and display fetch, for the peripheral contract of BX-16.
+  \item Bluespec SystemVerilog language reference, for the rule semantics assumed in Chapter~14.
+\end{enumerate}
+
+\noindent The BX notes \texttt{btron-bx8}, \texttt{btron-bx16}, \texttt{btron-bx32}, \texttt{btron-bx64}, and \texttt{btron-bx-series} record the same ladder. Where an older paragraph in those notes speaks of a private sixteen-bit vector encoding, this book is the later contract: standard OP-V, thirty-two vector registers, and the profile card.
