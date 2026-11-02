@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BX Series — Scalable Vector Machines 8→64 | bx.btron.pro</title>
+    <meta name="description"
+        content="The BTRON BX Series: a coherent family of clean FPGA RTL machines with scalable VEX vector extensions from 8-bit to 64-bit. OpenGL ES transform pipelines, RISC-V Vector mapping, and Bluespec SystemVerilog implementations for professional architectural study.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;600&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>document.documentElement.className += ' js';</script>
+    <style>
+        :root {
+            --jp-font: 'Noto Sans JP', 'Inter', system-ui, -apple-system, sans-serif;
+            --mincho-font: 'Shippori Mincho', 'Noto Sans JP', serif;
+            --mono-font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+            --tron-teal: #008080;
+            --tron-gold: #c59b27;
+            --ink: #14171a;
+            --ink-2: #2b3136;
+            --ink-3: #5b6470;
+            --paper: #f7f7f5;
+            --paper-2: #efeeea;
+            --plate: #ffffff;
+            --rule: #d8d7d1;
+            --rule-dark: rgba(255, 255, 255, 0.16);
+            --shadow-plate: 0 2px 4px rgba(20, 23, 26, 0.05),
+                0 18px 40px -18px rgba(20, 23, 26, 0.22),
+                0 60px 90px -50px rgba(20, 23, 26, 0.28);
+            --shadow-lift: 0 2px 4px rgba(20, 23, 26, 0.06),
+                0 28px 56px -20px rgba(20, 23, 26, 0.28),
+                0 80px 120px -60px rgba(20, 23, 26, 0.34);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            font-family: var(--jp-font);
+            font-weight: 400;
+            letter-spacing: 0.015em;
+            line-height: 1.85;
+            color: var(--ink-2);
+            background: var(--paper);
+            -webkit-font-smoothing: antialiased;
+        }
+        main { max-width: none; margin: 0; padding: 0; }
+        section { margin: 0; padding: clamp(5rem, 11vw, 10rem) 0; }
+        section h2, h2 {
+            background: none;
+            -webkit-background-clip: initial;
+            background-clip: initial;
+            -webkit-text-fill-color: currentColor;
+            color: var(--ink);
+        }
+        .wrap {
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 0 clamp(1.25rem, 5vw, 3.5rem);
+        }
+        .wrap-narrow { max-width: 780px; }
+        .jp-title {
+            font-family: var(--mincho-font);
+            font-weight: 600;
+            letter-spacing: 0;
+            word-break: keep-all;
+            overflow-wrap: break-word;
+        }
+        a { color: var(--tron-teal); text-decoration: none; transition: color 0.2s ease; }
+        a:hover { color: var(--ink); }
+
+        /* Navigation */
+        nav.sticky {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(247, 247, 245, 0.94);
+            border-bottom: 1px solid var(--rule);
+            backdrop-filter: blur(14px);
+        }
+        .nav-container {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 0.85rem clamp(1.25rem, 5vw, 3.5rem);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo {
+            font-family: var(--mincho-font);
+            font-weight: 700;
+            font-size: 1.35rem;
+            color: var(--ink);
+            text-decoration: none;
+            letter-spacing: -0.01em;
+        }
+        .logo span {
+            font-family: var(--mono-font);
+            font-weight: 400;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            color: var(--ink-3);
+            margin-left: 0.4rem;
+        }
+        .nav-links {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            gap: 1.6rem;
+        }
+        .nav-links a {
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: var(--ink-3);
+            text-decoration: none;
+        }
+        .nav-links a:hover, .nav-links a.active { color: var(--tron-teal); }
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.4rem;
+        }
+        .nav-toggle .hamburger,
+        .nav-toggle .hamburger::before,
+        .nav-toggle .hamburger::after {
+            display: block;
+            width: 22px;
+            height: 1.5px;
+            background: var(--ink);
+            position: relative;
+            transition: 0.25s;
+        }
+        .nav-toggle .hamburger::before,
+        .nav-toggle .hamburger::after {
+            content: "";
+            position: absolute;
+            left: 0;
+        }
+        .nav-toggle .hamburger::before { top: -7px; }
+        .nav-toggle .hamburger::after { top: 7px; }
+
+        /* Hero */
+        header {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background:
+                radial-gradient(120% 90% at 50% 0%, rgba(0, 128, 128, 0.07), rgba(0, 128, 128, 0) 60%),
+                var(--paper);
+            border-bottom: 1px solid var(--rule);
+        }
+        header::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(197, 155, 39, 0) 0%, rgba(197, 155, 39, 0.55) 50%, rgba(197, 155, 39, 0) 100%);
+        }
+        .hero-content {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 5.5rem clamp(1.25rem, 5vw, 3.5rem) 9rem;
+            text-align: center;
+        }
+        .hero-kicker {
+            font-family: var(--mono-font);
+            font-size: 0.76rem;
+            letter-spacing: 0.34em;
+            text-transform: uppercase;
+            color: var(--tron-teal);
+            margin-bottom: clamp(1.6rem, 4vw, 2.6rem);
+        }
+        .hero-content h1 {
+            font-family: var(--mincho-font);
+            font-weight: 700;
+            font-size: clamp(2.4rem, 6.8vw, 5.2rem);
+            line-height: 1.22;
+            letter-spacing: -0.015em;
+            color: var(--ink);
+            margin: 0 auto;
+            max-width: 18ch;
+        }
+        .hero-rule {
+            width: 64px;
+            height: 1px;
+            background: var(--ink);
+            margin: clamp(1.8rem, 4vw, 2.6rem) auto;
+            opacity: 0.55;
+        }
+        .hero-lede {
+            max-width: 860px;
+            margin: 0 auto;
+            font-size: clamp(1.02rem, 1.7vw, 1.18rem);
+            font-weight: 300;
+            line-height: 2.05;
+            color: var(--ink-2);
+        }
+        .hero-lede-en {
+            max-width: 720px;
+            margin: 1.7rem auto 0;
+            font-size: 0.95rem;
+            line-height: 1.95;
+            color: var(--ink-3);
+        }
+        .hero-marks {
+            margin-top: clamp(2.2rem, 5vw, 3.2rem);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem clamp(1.6rem, 4vw, 3.4rem);
+            justify-content: center;
+            font-family: var(--mono-font);
+            font-size: 0.74rem;
+            letter-spacing: 0.14em;
+            color: var(--ink-3);
+        }
+        .hero-marks span { white-space: nowrap; }
+        .hero-marks span::before {
+            content: "·";
+            margin-right: 0.6rem;
+            color: var(--tron-gold);
+        }
+        .scroll-cue {
+            position: absolute;
+            left: 50%;
+            bottom: 2.4rem;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.9rem;
+            font-family: var(--mono-font);
+            font-size: 0.66rem;
+            letter-spacing: 0.32em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+            text-decoration: none;
+        }
+        .scroll-cue i {
+            display: block;
+            width: 1px;
+            height: 54px;
+            background: linear-gradient(to bottom, var(--ink-3), rgba(91, 100, 112, 0));
+        }
+
+        /* Band heads */
+        .band-head {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: baseline;
+            gap: 1.6rem;
+            border-top: 1px solid var(--rule);
+            padding-top: 1.5rem;
+            margin-bottom: clamp(2.4rem, 6vw, 4rem);
+        }
+        .band-index {
+            font-family: var(--mono-font);
+            font-size: 0.78rem;
+            letter-spacing: 0.24em;
+            color: var(--tron-teal);
+            white-space: nowrap;
+        }
+        .band-head h2 {
+            font-family: var(--mincho-font);
+            font-weight: 600;
+            font-size: clamp(1.9rem, 4.8vw, 3.1rem);
+            line-height: 1.3;
+            text-align: left;
+            margin: 0;
+        }
+        .band-eyebrow {
+            grid-column: 1 / -1;
+            order: 3;
+            font-family: var(--mono-font);
+            font-size: 0.74rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+        }
+        .band-intro {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: clamp(2rem, 5vw, 4rem);
+            align-items: start;
+            margin-bottom: clamp(3rem, 7vw, 5.5rem);
+        }
+        .band-intro p {
+            font-size: 1rem;
+            line-height: 2.05;
+            color: var(--ink-2);
+            margin: 0;
+        }
+        .band-intro .en {
+            font-size: 0.93rem;
+            line-height: 1.95;
+            color: var(--ink-3);
+            padding-left: clamp(0rem, 3vw, 2rem);
+            border-left: 1px solid var(--rule);
+        }
+
+        /* Showcase */
+        .showcase {
+            display: grid;
+            grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+            gap: clamp(2.5rem, 6vw, 5.5rem);
+            align-items: center;
+            padding: clamp(3rem, 6vw, 5rem) 0;
+            border-top: 1px solid var(--rule);
+        }
+        .showcase:first-of-type { border-top: 0; padding-top: 0; }
+        .showcase.flip .plate-column { order: 2; }
+        .showcase.flip .copy { order: 1; }
+
+        /* Plates */
+        .plate {
+            margin: 0;
+            background: var(--plate);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            box-shadow: var(--shadow-plate);
+            padding: clamp(1.4rem, 3vw, 2.4rem);
+            transition: box-shadow 420ms cubic-bezier(0.23, 1, 0.32, 1),
+                transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .plate:hover {
+            box-shadow: var(--shadow-lift);
+            transform: translateY(-6px);
+        }
+        .field {
+            background: radial-gradient(70% 70% at 50% 40%, #ffffff 0%, var(--paper-2) 100%);
+            border-bottom: 1px solid var(--rule);
+            padding: clamp(1rem, 2.5vw, 1.9rem);
+            display: block;
+            position: relative;
+            overflow: hidden;
+        }
+        .plate figcaption {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 0.4rem 1.4rem;
+            padding-top: 1.05rem;
+            font-family: var(--mono-font);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+        }
+        .plate figcaption b { color: var(--ink); font-weight: 500; }
+
+        /* Tables */
+        .market-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+        .market-table th {
+            text-align: left;
+            font-family: var(--mono-font);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+            padding: 0.55rem 0.7rem;
+            border-bottom: 1px solid var(--rule);
+            font-weight: 500;
+        }
+        .market-table td {
+            padding: 0.75rem 0.7rem;
+            border-bottom: 1px solid rgba(216, 215, 209, 0.6);
+            vertical-align: top;
+            color: var(--ink-2);
+        }
+        .market-table tr:last-child td { border-bottom: none; }
+        .market-table b { color: var(--ink); font-weight: 600; }
+        .market-table code {
+            font-family: var(--mono-font);
+            font-size: 0.82em;
+            background: rgba(0, 128, 128, 0.06);
+            padding: 0.1em 0.35em;
+            border-radius: 2px;
+        }
+
+        /* Copy column */
+        .role {
+            font-family: var(--mono-font);
+            font-size: 0.72rem;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: var(--tron-teal);
+            margin-bottom: 1.1rem;
+        }
+        .copy h3 {
+            font-family: var(--mincho-font);
+            font-weight: 600;
+            font-size: clamp(1.55rem, 3.2vw, 2.2rem);
+            line-height: 1.35;
+            color: var(--ink);
+            margin: 0 0 1.3rem;
+        }
+        .copy p {
+            margin: 0 0 1.15rem;
+            font-size: 0.97rem;
+            line-height: 2.05;
+            color: var(--ink-2);
+        }
+        .copy .en {
+            font-size: 0.9rem;
+            line-height: 1.95;
+            color: var(--ink-3);
+        }
+        ul.spec {
+            list-style: none;
+            margin: 1.4rem 0 1.6rem;
+            padding: 0;
+            border-top: 1px solid var(--rule);
+        }
+        ul.spec li {
+            display: grid;
+            grid-template-columns: minmax(0, 42%) minmax(0, 58%);
+            gap: 0.8rem;
+            padding: 0.7rem 0;
+            border-bottom: 1px solid rgba(216, 215, 209, 0.55);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+        ul.spec li strong {
+            font-weight: 600;
+            color: var(--ink);
+            font-family: var(--mono-font);
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+        }
+        ul.spec li span { color: var(--ink-2); }
+        .entry {
+            display: inline-block;
+            font-family: var(--mono-font);
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--tron-teal);
+            border-bottom: 1px solid rgba(0, 128, 128, 0.35);
+            padding-bottom: 0.15rem;
+            margin-top: 0.4rem;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .entry:hover {
+            color: var(--ink);
+            border-color: var(--ink);
+        }
+
+        /* Cards / strip */
+        .strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: clamp(1.2rem, 2.5vw, 1.8rem);
+            margin-top: clamp(1.5rem, 3vw, 2.5rem);
+        }
+        .card {
+            background: var(--plate);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            box-shadow: var(--shadow-plate);
+            padding: clamp(1.4rem, 2.5vw, 1.9rem);
+            transition: box-shadow 380ms cubic-bezier(0.23, 1, 0.32, 1),
+                transform 380ms cubic-bezier(0.23, 1, 0.32, 1);
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lift);
+            transform: translateY(-5px);
+        }
+        .card-num {
+            font-family: var(--mono-font);
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--tron-teal);
+            margin-bottom: 0.7rem;
+        }
+        .card h4 {
+            font-family: var(--mincho-font);
+            font-weight: 600;
+            font-size: 1.35rem;
+            line-height: 1.35;
+            color: var(--ink);
+            margin: 0 0 0.5rem;
+        }
+        .card .role {
+            margin-bottom: 0.85rem;
+        }
+        .card p {
+            font-size: 0.88rem;
+            line-height: 1.9;
+            color: var(--ink-2);
+            margin: 0 0 1.2rem;
+            flex-grow: 1;
+        }
+        .card .entry { margin-top: auto; align-self: flex-start; }
+
+        /* PDF links */
+        .pdf-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .pdf-link {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 1rem 1.2rem;
+            background: var(--plate);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            box-shadow: 0 1px 2px rgba(20, 23, 26, 0.05);
+            text-decoration: none;
+            transition: box-shadow 0.3s, transform 0.3s;
+        }
+        .pdf-link:hover {
+            box-shadow: var(--shadow-plate);
+            transform: translateY(-3px);
+        }
+        .pdf-link .icon {
+            font-family: var(--mono-font);
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+            color: var(--tron-gold);
+            border: 1px solid rgba(197, 155, 39, 0.4);
+            padding: 0.25rem 0.45rem;
+            border-radius: 2px;
+        }
+        .pdf-link .meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        .pdf-link .meta b {
+            font-size: 0.88rem;
+            color: var(--ink);
+            font-weight: 600;
+        }
+        .pdf-link .meta span {
+            font-family: var(--mono-font);
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            color: var(--ink-3);
+        }
+
+        /* Closing */
+        .closing-entries {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem 2rem;
+            margin-top: 2.5rem;
+        }
+
+        /* Footer */
+        footer {
+            background: #1a1e22;
+            color: #a8b0b8;
+            padding: clamp(4rem, 8vw, 6rem) 0 3rem;
+            font-size: 0.88rem;
+            line-height: 1.75;
+        }
+        footer a { color: #c8d0d8; }
+        footer a:hover { color: #fff; }
+        .footer-columns {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 0 clamp(1.25rem, 5vw, 3.5rem);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 2.5rem 2rem;
+        }
+        footer h4 {
+            font-family: var(--mono-font);
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #e0e4e8;
+            margin: 0 0 1.1rem;
+            font-weight: 500;
+        }
+        footer ul { list-style: none; margin: 0; padding: 0; }
+        footer li { margin-bottom: 0.45rem; }
+        footer p { margin: 0 0 0.4rem; color: #8a939c; }
+        .footer-bottom {
+            max-width: 1180px;
+            margin: 4.5rem auto 0;
+            padding: 3.5rem clamp(1.25rem, 5vw, 3.5rem) 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.6rem;
+        }
+        .footer-legal {
+            max-width: 920px;
+            text-align: left;
+        }
+        .footer-legal p {
+            margin: 0 0 0.9rem;
+            line-height: 1.75;
+            color: #69747e;
+            font-size: 0.74rem;
+        }
+        .footer-legal p:first-child {
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            color: #b8c0c8;
+            font-size: 0.81rem;
+            text-align: center;
+        }
+
+        /* Reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.7s cubic-bezier(0.23, 1, 0.32, 1),
+                transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        .reveal.in {
+            opacity: 1;
+            transform: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .band-intro { grid-template-columns: 1fr; }
+            .band-intro .en { border-left: none; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 1.4rem; }
+            .showcase { grid-template-columns: 1fr; }
+            .showcase.flip .plate-column, .showcase.flip .copy { order: unset; }
+            .nav-links { display: none; }
+            .nav-links.open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0; right: 0;
+                background: var(--paper);
+                border-bottom: 1px solid var(--rule);
+                padding: 1.2rem 1.5rem 1.6rem;
+                gap: 0.9rem;
+            }
+            .nav-toggle { display: block; }
+        }
+        @media (max-width: 600px) {
+            ul.spec li { grid-template-columns: 1fr; gap: 0.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sticky" aria-label="Site navigation">
+        <div class="nav-container">
+            <a href="index.html" class="logo">BX <span>btron.pro</span></a>
+            <button class="nav-toggle" aria-label="Toggle navigation"
+                onclick="document.querySelector('.nav-links').classList.toggle('open'); this.classList.toggle('open');">
+                <span class="hamburger"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="#series">Series</a></li>
+                <li><a href="#vex">VEX</a></li>
+                <li><a href="#machines">Machines</a></li>
+                <li><a href="#opengl">OpenGL ES</a></li>
+                <li><a href="#notes">Notes</a></li>
+                <li><a href="https://msx.btron.pro/" target="_blank">MSX</a></li>
+                <li><a href="https://btron.pro/" target="_blank">BTRON</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <header>
+        <div class="hero-content">
+            <p class="hero-kicker">Bluespec SystemVerilog · RISC-V Vector · OpenGL ES Path</p>
+            <h1 class="jp-title">Scalable Vector Machines.<br>8-bit to 64-bit.</h1>
+            <div class="hero-rule"></div>
+            <p class="hero-lede">
+                The BTRON BX series is a coherent family of clean, synthesizable FPGA RTL machines that systematically revive the peripheral ecosystems and computational spirit of classic 8-bit through 64-bit platforms. From BX-16 upward the series adopts a deliberately scalable vector architecture—VEX—whose element widths, vector lengths and floating-point capabilities grow in lock-step with the host integer ISA, remaining source-compatible across the entire family and mapped onto the RISC-V Vector Extension hierarchy.
+            </p>
+            <p class="hero-lede-en">
+                Four cores—bx-8, bx-16, bx-32, bx-64—share one design culture, one peripheral-library discipline and one progressive vector programming model. All are expressed in Bluespec SystemVerilog, target contemporary FPGAs, and are offered as an independent systems-architecture study.
+            </p>
+            <div class="hero-marks">
+                <span>VEX · RVV / Zve* · SEW 8→64</span>
+                <span>OpenGL ES Vertex Pipeline</span>
+                <span>Bluespec SystemVerilog · FPGA-first</span>
+            </div>
+        </div>
+        <a class="scroll-cue" href="#series" aria-label="Scroll down"><i></i></a>
+    </header>
+
+    <main>
+
+        <!-- ═══ 00 / Series Philosophy ═══ -->
+        <section id="series">
+            <div class="wrap">
+                <div class="band-head reveal">
+                    <span class="band-index">00 / Series</span>
+                    <h2 class="jp-title">Unifying Philosophy</h2>
+                    <p class="band-eyebrow">Clean RTL · Peripheral Libraries · Scalable Vectors · Professional Respect</p>
+                </div>
+
+                <div class="band-intro reveal">
+                    <p>
+                        Classic home-computer and console architectures solved difficult real-time media problems under severe cost, power and transistor constraints. Their peripheral sets and specialised compute units remain instructive. The BTRON BX programme does not attempt commercial competition or cycle-accurate commercial emulation. It asks whether the essential organisation of these machines—their peripheral libraries, dual-processor or vector-unit structure, DMA and local-memory philosophy—can be re-expressed in clean, modern, synthesizable RTL that any competent engineer can read, modify and run on an FPGA.
+                    </p>
+                    <p class="en">
+                        From BX-16 upward an additional requirement is imposed: the vector capability itself must be scalable. The same programming model, the same configuration mechanism, and the same element-type hierarchy appear at every width, merely with larger minimum VLEN, wider supported element widths, and richer floating-point support as one moves from 16-bit to 64-bit hosts.
+                    </p>
+                </div>
+
+                <div class="showcase reveal">
+                    <div class="plate-column">
+                        <figure class="plate">
+                            <div class="field" style="padding: 1.2rem; background: var(--plate);">
+                                <table class="market-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:28%">Machine</th>
+                                            <th>Width</th>
+                                            <th>Vector Capability</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>bx-8</b></td>
+                                            <td>8-bit</td>
+                                            <td>none (infrastructure only)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>bx-16</b></td>
+                                            <td>16-bit</td>
+                                            <td>native VEX · SEW 8/16 · Q16.16 · 4-wide</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>bx-32</b></td>
+                                            <td>32-bit</td>
+                                            <td>Zve32f / Zve64f · FP32 · VLEN ≥ 64</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>bx-64</b></td>
+                                            <td>64-bit</td>
+                                            <td>full RVV / Zve64d · FP32+FP64 · VLEN ≥ 128</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <figcaption>
+                                <span><b>Progression</b> — Width &amp; Vector Capability</span>
+                                <span>Umbrella Note · November 2026</span>
+                            </figcaption>
+                        </figure>
+                    </div>
+                    <div class="copy">
+                        <p class="role">Architectural Programme</p>
+                        <h3 class="jp-title">One Graduated Family</h3>
+                        <p>
+                            A student or engineer can begin with bx-8, master the common BSV infrastructure, then acquire the scalable vector programming model on bx-16 and simply grow the same code to the richer element widths and floating-point support of bx-32 and bx-64.
+                        </p>
+                        <ul class="spec">
+                            <li><strong>Clean RTL</strong><span>Bluespec SystemVerilog throughout</span></li>
+                            <li><strong>Selectable peripherals</strong><span>Parameterised authenticity + experiment</span></li>
+                            <li><strong>Open / clean ISAs</strong><span>R1600 · RV32 · RV64</span></li>
+                            <li><strong>Scalable VEX</strong><span>Identical model from 16-bit upward</span></li>
+                            <li><strong>FPGA-first</strong><span>Synthesizable on contemporary devices</span></li>
+                        </ul>
+                        <a class="entry" href="#notes">Technical notes &amp; PDFs →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ 01 / VEX ═══ -->
+        <section id="vex">
+            <div class="wrap">
+                <div class="band-head reveal">
+                    <span class="band-index">01 / VEX</span>
+                    <h2 class="jp-title">The VEX Vector Extension</h2>
+                    <p class="band-eyebrow">Authoritative Definition · Length-Agnostic · Source-Compatible Across Family</p>
+                </div>
+
+                <div class="band-intro reveal">
+                    <p>
+                        VEX is the name given to the scalable vector architecture of the BX series. It is first realised concretely on the 16-bit R1600 core and is thereafter mapped onto the ratified RISC-V Vector Extension (RVV 1.0) and its embedded subsets. Software written against the BX-16 VEX model remains source-compatible; only the available element widths and the concrete VLMAX change.
+                    </p>
+                    <p class="en">
+                        Core properties common to every width: orthogonal 16-register vector file, configurable SEW drawn from {8, 16, 32, 64}, length-agnostic kernels driven by a vsetvl-style configuration instruction, saturating integer arithmetic, widening multiplies, reductions, and—from BX-32 upward—single- and double-precision floating-point.
+                    </p>
+                </div>
+
+                <div class="showcase flip reveal">
+                    <div class="plate-column">
+                        <figure class="plate">
+                            <div class="field" style="padding: 1.2rem; background: var(--plate);">
+                                <table class="market-table">
+                                    <thead>
+                                        <tr>
+                                            <th>BX Machine</th>
+                                            <th>Host</th>
+                                            <th>VEX / RVV Subset</th>
+                                            <th>Key Capabilities</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>BX-16</b></td>
+                                            <td>R1600</td>
+                                            <td>VEX (native)</td>
+                                            <td>SEW 8/16 · VLEN 32–128 · integer + saturating</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>BX-32</b></td>
+                                            <td>RV32</td>
+                                            <td>Zve32f / Zve64f</td>
+                                            <td>SEW 8/16/32 · FP32 · VLEN ≥ 64</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>BX-64</b></td>
+                                            <td>RV64</td>
+                                            <td>V / Zve64d</td>
+                                            <td>SEW 8/16/32/64 · FP32+FP64 · VLEN ≥ 128</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <figcaption>
+                                <span><b>Mapping onto RVV Hierarchy</b></span>
+                                <span>Source-compatible kernels</span>
+                            </figcaption>
+                        </figure>
+                    </div>
+                    <div class="copy">
+                        <p class="role">Vector Architecture</p>
+                        <h3 class="jp-title">Concrete Realisation on BX-16</h3>
+                        <p>
+                            Vector registers VR0–VR15, each 128 bits (primary view 4×32-bit Q16.16 lanes; alternative 8×16-bit). Primary arithmetic format Q16.16 fixed-point with 64-bit intermediate product. Key operations include VADD, VSUB, VMUL, VMADD, VDOT, VCROSS, VLD, VST, VBROADCAST, VMAT4VEC and VWAIT.
+                        </p>
+                        <ul class="spec">
+                            <li><strong>VMAT4VEC</strong><span>4×4 matrix × vector in one instruction</span></li>
+                            <li><strong>VCROSS</strong><span>3-element cross product</span></li>
+                            <li><strong>Config</strong><span>Isomorphic to RVV vtype / vl</span></li>
+                            <li><strong>Domain ops</strong><span>Retained as custom or expanded</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="showcase reveal">
+                    <div class="plate-column">
+                        <figure class="plate">
+                            <div class="field" style="padding: 1.2rem; background: var(--plate);">
+                                <table class="market-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Subset</th>
+                                            <th>Min VLEN</th>
+                                            <th>EEW</th>
+                                            <th>FP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td><b>Zve32x</b></td><td>32</td><td>8, 16, 32</td><td>none</td></tr>
+                                        <tr><td><b>Zve32f</b></td><td>32</td><td>8, 16, 32</td><td>FP32</td></tr>
+                                        <tr><td><b>Zve64x</b></td><td>64</td><td>8, 16, 32, 64</td><td>none</td></tr>
+                                        <tr><td><b>Zve64f</b></td><td>64</td><td>8, 16, 32, 64</td><td>FP32</td></tr>
+                                        <tr><td><b>Zve64d</b></td><td>64</td><td>8, 16, 32, 64</td><td>FP32+FP64</td></tr>
+                                        <tr><td><b>V (full)</b></td><td>128</td><td>8, 16, 32, 64</td><td>FP32+FP64</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <figcaption>
+                                <span><b>RVV Embedded Subsets</b> — Scaling Path</span>
+                                <span>Aligned exactly with BX series</span>
+                            </figcaption>
+                        </figure>
+                    </div>
+                    <div class="copy">
+                        <p class="role">RVV Hierarchy</p>
+                        <h3 class="jp-title">Deliberate Alignment</h3>
+                        <p>
+                            The vector story is deliberately aligned with the ratified RISC-V Vector Extension and its embedded subsets, because those subsets already encode a clean scaling path. The BX series maps onto this hierarchy exactly.
+                        </p>
+                        <p class="en">
+                            Length-agnostic loops written against VL and SEW compile unchanged when the host becomes RV32 or RV64. Domain-specific accelerators are either retained as custom opcodes under the RVV custom-0/1 space or expanded by the compiler into short standard sequences.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ 02 / Machines ═══ -->
+        <section id="machines">
+            <div class="wrap">
+                <div class="band-head reveal">
+                    <span class="band-index">02 / Machines</span>
+                    <h2 class="jp-title">The Four Cores</h2>
+                    <p class="band-eyebrow">bx-8 · bx-16 · bx-32 · bx-64 — One Design Culture</p>
+                </div>
+
+                <div class="band-intro reveal">
+                    <p>
+                        Each machine occupies a precise place in the graduated programme. BX-8 validates the common Bluespec infrastructure and peripheral-library discipline. BX-16 introduces the authoritative VEX definition and the first OpenGL ES-style transform path. BX-32 and BX-64 scale the same model onto 32-bit and 64-bit RISC-V hosts with progressively richer floating-point and vector length support.
+                    </p>
+                    <p class="en">
+                        All four share clean RTL, selectable peripheral libraries, open or cleanly designed ISAs, the scalable vector model (from BX-16), FPGA-first implementation, and a professional stance that honours the original engineers.
+                    </p>
+                </div>
+
+                <div class="strip reveal">
+                    <div class="card">
+                        <span class="card-num">01</span>
+                        <h4>BX-8</h4>
+                        <p class="role">MSX / R800 Class</p>
+                        <p>Entry-level member. MSX-compatible peripheral set—VDP, PSG and related I/O—driven by an R800-class CPU core, all in synthesizable Bluespec. No vector unit; pure 8-bit foundation for the common BSV infrastructure.</p>
+                        <a class="entry" href="#notes">btron-bx8 technical note →</a>
+                    </div>
+                    <div class="card">
+                        <span class="card-num">02</span>
+                        <h4>BX-16</h4>
+                        <p class="role">16-bit + Native VEX</p>
+                        <p>R1600 core with first scalable vector unit. SEW 8/16, modest VLEN, integer + saturating arithmetic. OpenGL ES path begins here. Dual-processor hybrid or tightly-coupled coprocessor organisations.</p>
+                        <a class="entry" href="#notes">btron-bx16 technical note →</a>
+                    </div>
+                    <div class="card">
+                        <span class="card-num">03</span>
+                        <h4>BX-32</h4>
+                        <p class="role">Saturn / Dreamcast Spirit</p>
+                        <p>RV32 host + Zve32f/Zve64f-class vector unit. Dual-core or single high-performance configurations. Full OpenGL ES vertex pipeline. Captures dual-SH-2 coordination and SH-4 matrix pipelines.</p>
+                        <a class="entry" href="#notes">btron-bx32 technical note →</a>
+                    </div>
+                    <div class="card">
+                        <span class="card-num">04</span>
+                        <h4>BX-64</h4>
+                        <p class="role">EE / RCP Revival</p>
+                        <p>Dual RV64 cores + full RVV / Zve64d. Highest-throughput member. SEW 8–64, FP32+FP64, VLEN ≥ 128. Covers Emotion Engine VU0/VU1 and N64 RSP workloads under a single scalable model.</p>
+                        <a class="entry" href="#notes">btron-bx64 technical note →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ 03 / OpenGL ES ═══ -->
+        <section id="opengl">
+            <div class="wrap">
+                <div class="band-head reveal">
+                    <span class="band-index">03 / OpenGL ES</span>
+                    <h2 class="jp-title">OpenGL ES Path</h2>
+                    <p class="band-eyebrow">Transform · Lighting · Vertex Pipeline · Length-Agnostic Kernels</p>
+                </div>
+
+                <div class="band-intro reveal">
+                    <p>
+                        The primary non-legacy workload considered across the series is software 3D rendering of the complexity that tinyGL and related fixed-function OpenGL ES 1.x subsets can express: low-to-mid polygon counts, simple lighting, perspective-correct or affine texturing, and a software Z-buffer. The architecture must make the transform-and-lighting stage and the inner rasterisation loops substantially faster than a pure scalar host, without requiring a full modern GPU.
+                    </p>
+                    <p class="en">
+                        On BX-16 the VEX unit supplies 4-wide Q16.16 matrix–vector products and cross products. On BX-32 the same length-agnostic loops gain FP32 and wider VLEN. On BX-64 they gain FP64 and the full RVV operation set. A single high-level 3D library can therefore target every machine from the 16-bit entry point upward.
+                    </p>
+                </div>
+
+                <div class="showcase reveal">
+                    <div class="plate-column">
+                        <figure class="plate">
+                            <div class="field" style="padding: 1.2rem; background: var(--plate);">
+                                <table class="market-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Stage</th>
+                                            <th>BX-16 VEX</th>
+                                            <th>BX-32 / BX-64</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>Matrix × Vertex</b></td>
+                                            <td>VMAT4VEC (single instr.)</td>
+                                            <td>vfmacc sequences / custom</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Dot / Lighting</b></td>
+                                            <td>VDOT · saturating MAC</td>
+                                            <td>vfdot / reductions</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Cross Product</b></td>
+                                            <td>VCROSS</td>
+                                            <td>short RVV sequence</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Load / Store</b></td>
+                                            <td>VLD / VST 128-bit</td>
+                                            <td>vector load/store + gather</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Config</b></td>
+                                            <td>vsetvl-style registers</td>
+                                            <td>identical model</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <figcaption>
+                                <span><b>OpenGL ES Transform Path</b></span>
+                                <span>Source-compatible across widths</span>
+                            </figcaption>
+                        </figure>
+                    </div>
+                    <div class="copy">
+                        <p class="role">Graphics Workload</p>
+                        <h3 class="jp-title">From Fixed-Point to Full FP</h3>
+                        <p>
+                            BX-16 introduces saturating arithmetic, widening multiplies and simple reductions—exactly the operations useful for Amiga-style blitter work, audio mixing and early OpenGL ES-style transform kernels. BX-32 adds single-precision floating-point essential for Dreamcast-style matrix work and full vertex processing. BX-64 supplies the complete set required to cover Emotion Engine and N64 RSP geometry rates.
+                        </p>
+                        <a class="entry" href="#notes">Companion technical notes →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ 04 / Notes & PDFs ═══ -->
+        <section id="notes">
+            <div class="wrap">
+                <div class="band-head reveal">
+                    <span class="band-index">04 / Notes</span>
+                    <h2 class="jp-title">Technical Notes &amp; Academic Record</h2>
+                    <p class="band-eyebrow">Umbrella Study · Companion Notes · Scopus-Ready Foundation</p>
+                </div>
+
+                <div class="band-intro reveal">
+                    <p>
+                        The series is documented as a set of independent systems-architecture technical notes prepared for professional consideration. The umbrella note situates the four cores within a single coherent programme. Each companion note supplies the detailed architectural intent, BSV organisation, vector mapping and relationship to the original platforms. All are framed for archival and academic use.
+                    </p>
+                    <p class="en">
+                        Sources and documentation are offered under open terms suitable for laboratory reproduction, classroom study and further research. The work does not claim commercial product status; it is an architectural study that honours the original engineering.
+                    </p>
+                </div>
+
+                <div class="pdf-row reveal">
+                    <a class="pdf-link" href="doc/btron-bx-series.pdf" target="_blank">
+                        <span class="icon">PDF</span>
+                        <span class="meta">
+                            <b>BX Series Umbrella</b>
+                            <span>btron-bx-series · Nov 2026</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="doc/btron-bx8.pdf" target="_blank">
+                        <span class="icon">PDF</span>
+                        <span class="meta">
+                            <b>BX-8 Technical Note</b>
+                            <span>MSX / R800 · Bluespec</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="doc/btron-bx16.pdf" target="_blank">
+                        <span class="icon">PDF</span>
+                        <span class="meta">
+                            <b>BX-16 / VEX Definition</b>
+                            <span>R1600 · Authoritative VEX</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="doc/btron-bx32.pdf" target="_blank">
+                        <span class="icon">PDF</span>
+                        <span class="meta">
+                            <b>BX-32 Technical Note</b>
+                            <span>Saturn / Dreamcast · Zve*</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="doc/btron-bx64.pdf" target="_blank">
+                        <span class="icon">PDF</span>
+                        <span class="meta">
+                            <b>BX-64 Technical Note</b>
+                            <span>EE / RCP · full RVV</span>
+                        </span>
+                    </a>
+                </div>
+
+                <div class="showcase reveal" style="border-top: 1px solid var(--rule); margin-top: 3.5rem;">
+                    <div class="plate-column">
+                        <figure class="plate">
+                            <div class="field" style="padding: 1.2rem; background: var(--plate);">
+                                <ul class="spec" style="border-top: none; margin: 0;">
+                                    <li><strong>Umbrella</strong><span>btron-bx-series.tex</span></li>
+                                    <li><strong>BX-8</strong><span>btron-bx8.tex · fpgaMSX companion</span></li>
+                                    <li><strong>BX-16</strong><span>btron-bx16.tex · VEX authoritative</span></li>
+                                    <li><strong>BX-32</strong><span>btron-bx32.tex · Zve32f/Zve64f</span></li>
+                                    <li><strong>BX-64</strong><span>btron-bx64.tex · V / Zve64d</span></li>
+                                    <li><strong>Implementation</strong><span>Bluespec SystemVerilog · FPGA</span></li>
+                                    <li><strong>Stance</strong><span>Architectural study · open accessibility</span></li>
+                                </ul>
+                            </div>
+                            <figcaption>
+                                <span><b>Source Artefacts</b></span>
+                                <span>November 2026</span>
+                            </figcaption>
+                        </figure>
+                    </div>
+                    <div class="copy">
+                        <p class="role">Academic Framing</p>
+                        <h3 class="jp-title">Foundation for Further Work</h3>
+                        <p>
+                            The notes are written first for the engineers who designed, verified and programmed the original platforms, and for those who continue to study media-processor organisation. They supply a precise, citable record of the VEX model and its scaling path, suitable for laboratory use, teaching and formal comparison with contemporaneous RISC-V vector practice.
+                        </p>
+                        <div class="closing-entries">
+                            <a class="entry" href="https://msx.btron.pro/emulators/fpgaMSX" target="_blank">fpgaMSX / BX-8 →</a>
+                            <a class="entry" href="https://btron.pro/" target="_blank">BTRON host →</a>
+                            <a class="entry" href="https://github.com/msx-btron/btron" target="_blank">Source repository →</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ 05 / Conclusion ═══ -->
+        <section id="conclusion">
+            <div class="wrap">
+                <div class="band-head reveal">
+                    <span class="band-index">05 / Invitation</span>
+                    <h2 class="jp-title">Living Subjects of Study</h2>
+                    <p class="band-eyebrow">Respect · Openness · Progressive Vector Capability</p>
+                </div>
+                <div class="band-intro reveal">
+                    <p>
+                        The BTRON BX series is an invitation to treat classic media-processor architectures as living subjects of study. By re-expressing their peripheral ecosystems in clean Bluespec SystemVerilog, and by imposing a single scalable vector architecture (VEX) from BX-16 upward, the series offers a practical path from 8-bit MSX-class machines to 64-bit vector architectures whose software model remains coherent across the entire family.
+                    </p>
+                    <p class="en">
+                        The four cores—bx-8, bx-16, bx-32 and bx-64—form one graduated programme united by methodology, by a progressive vector capability, and by respect for the original engineering.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Global Footer — copyright from msx.btron.pro -->
+    <footer>
+        <div class="footer-columns">
+            <div>
+                <h4>BX Series</h4>
+                <ul>
+                    <li><a href="#series">Series Philosophy</a></li>
+                    <li><a href="#vex">VEX Vector Extension</a></li>
+                    <li><a href="#machines">Four Machines</a></li>
+                    <li><a href="#opengl">OpenGL ES Path</a></li>
+                    <li><a href="#notes">Technical Notes</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Companion Notes</h4>
+                <ul>
+                    <li><a href="doc/btron-bx-series.pdf" target="_blank">Umbrella Note</a></li>
+                    <li><a href="doc/btron-bx8.pdf" target="_blank">BX-8 (MSX / R800)</a></li>
+                    <li><a href="doc/btron-bx16.pdf" target="_blank">BX-16 / VEX Definition</a></li>
+                    <li><a href="doc/btron-bx32.pdf" target="_blank">BX-32 (Saturn / DC)</a></li>
+                    <li><a href="doc/btron-bx64.pdf" target="_blank">BX-64 (EE / RCP)</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Related Portals</h4>
+                <ul>
+                    <li><a href="https://msx.btron.pro/" target="_blank">msx.btron.pro</a></li>
+                    <li><a href="https://msx.btron.pro/emulators/fpgaMSX" target="_blank">fpgaMSX</a></li>
+                    <li><a href="https://btron.pro/" target="_blank">btron.pro</a></li>
+                    <li><a href="https://github.com/msx-btron/btron" target="_blank">GitHub · btron</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Standards</h4>
+                <ul>
+                    <li>Bluespec SystemVerilog</li>
+                    <li>RISC-V Vector (RVV 1.0)</li>
+                    <li>Zve32f / Zve64d subsets</li>
+                    <li>OpenGL ES 1.x class</li>
+                    <li>FPGA synthesis targets</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-legal">
+                <p>
+                    &copy; 2026 Cryptographic Telesystems, LLC. Ukraine. All rights reserved.
+                </p>
+                <p>
+                    <b>TRADEMARK &amp; COMPLIANCE DISCLOSURE:</b> MSX&trade; is a registered trademark of MSX
+                    Licensing Corporation and ASCII Corporation. SONY&reg;, HitBit&trade;, and G-ZERO&trade; are
+                    trademarks or registered trademarks of Sony Group Corporation / Sony Corporation. Panasonic&reg;
+                    (Panasonic Holdings Corporation), Victor / JVC&reg; (JVCKENWOOD Corporation), Yamaha&reg;
+                    (Yamaha Corporation), and Hitachi&reg; (Hitachi, Ltd.) are trademarks of their respective
+                    proprietors. SONY&reg;, PlayStation&reg;, PS2&reg;, Emotion Engine&reg; (EE), Graphics Synthesizer&reg; (GS), and DualShock&reg; are registered trademarks or trademarks of Sony Group Corporation / Sony Interactive Entertainment Inc. Nintendo&reg; and Nintendo 64&reg; (N64) are registered trademarks of Nintendo Co., Ltd. Sega&reg;, Saturn&reg;, and Dreamcast&reg; are trademarks or registered trademarks of SEGA CORPORATION. RISC-V&reg; is a trademark of RISC-V International. All manufacturer designations, hardware component identifiers, silicon architectures, and registered software titles cited within this repository are the property of their respective trademark holders and are reproduced strictly under statutory fair use doctrine for non-commercial historical preservation, register-level hardware documentation, and cleanroom interoperability engineering. BTRON BX Series implementations contain no proprietary vendor microcode, firmware ROMs, or copyrighted assets.
+                </p>
+                <p>
+                    bx.btron.pro &nbsp;·&nbsp; BTRON BX Series Architectural Portal &nbsp;·&nbsp; Under ISC / MIT
+                    Licence &nbsp;·&nbsp; Conforming to DOCOPS &amp; PUBLISH Standards
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        (function () {
+            var nodes = document.querySelectorAll('.reveal');
+            if (!('IntersectionObserver' in window)) {
+                for (var i = 0; i < nodes.length; i++) { nodes[i].classList.add('in'); }
+                return;
+            }
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (e) {
+                    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+                });
+            }, { rootMargin: '0px 0px -12% 0px', threshold: 0.06 });
+            for (var j = 0; j < nodes.length; j++) { io.observe(nodes[j]); }
+        })();
+    </script>
+</body>
+</html>
