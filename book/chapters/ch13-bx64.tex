@@ -21,6 +21,111 @@ SEW=64 is the element width a double-precision value needs, and the element widt
 
 Masks, slides, and reductions at SEW=64 are required. Indexed accesses are required. \texttt{vstart} becomes architecturally visible if the machine has a page table and a vector load can fault on a later page than it started on. The simple machines avoided this by checking the whole access first. A sixty-four-bit hart with virtual memory cannot always do that cheaply. Implement \texttt{vstart}, test a fault on element 0 and a fault on a middle element, and document that restart is precise.
 
+\section{Opcode map for Zve64d / V (BX-64)}
+
+All opcodes of Zve32f remain legal. The additional classes and element widths required by Zve64d (and by V) are listed below.
+
+\subsection{Configuration}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vsetvl}, \texttt{vsetvli}, \texttt{vsetivli}
+\end{itemize}
+
+\subsection{Load and store (all legal EEW)}
+\begin{itemize}[leftmargin=1.5em]
+  \item Unit-stride: \texttt{vle8/16/32/64.v}, \texttt{vse8/16/32/64.v}
+  \item Stride: \texttt{vlse*}, \texttt{vsse*}
+  \item Indexed unordered/ordered: \texttt{vluxei*}, \texttt{vloxei*}, \texttt{vsuxei*}, \texttt{vsoxei*}
+\end{itemize}
+
+\subsection{Integer arithmetic (SEW = 8, 16, 32, 64)}
+\begin{itemize}[leftmargin=1.5em]
+  \item Full set of add/sub, logic, shift, min/max, compare
+  \item Widening multiply (up to EEW=64) and narrowing shift/clip
+  \item Saturating arithmetic
+  \item Integer reductions
+  \item Slides, \texttt{vrgather}, \texttt{vcompress}
+\end{itemize}
+
+\subsection{Floating-point arithmetic}
+\begin{itemize}[leftmargin=1.5em]
+  \item All FP32 operations of Zve32f
+  \item FP64 counterparts:
+    \begin{itemize}
+      \item \texttt{vfadd.vv/vf}, \texttt{vfsub.vv/vf}, \texttt{vfmul.vv/vf}
+      \item \texttt{vfmacc}, \texttt{vfnmacc}, \texttt{vfmsac}, \texttt{vfnmsac}
+      \item \texttt{vfmadd}, \texttt{vfnmadd}, \texttt{vfmsub}, \texttt{vfnmsub}
+      \item \texttt{vfmin}, \texttt{vfmax}, \texttt{vfsqrt}, sign-injection
+      \item Conversions between FP64, FP32 and integer SEW=64
+      \item FP64 compare producing masks
+    \end{itemize}
+\end{itemize}
+
+\subsection{Mask and move}
+\begin{itemize}[leftmargin=1.5em]
+  \item Full mask logical and population set
+  \item \texttt{vmv}, \texttt{vfmv} for both single and double
+\end{itemize}
+
+If the claim is the full application extension V, every instruction required by the V specification (including the remaining reductions, more permute forms, and the complete conversion set) must be present and the V bit set in \texttt{misa}. Zve64d implementations omit the V bit and may omit instructions that V adds beyond Zve64d.
+
+Xsvm must be left off on any image that claims V.
+
+\section{Assembler kernels that must run}
+
+In addition to every kernel of the lower profiles, the following must pass on BX-64.
+
+\subsection{sew64 --- double-word fill}
+\begin{lstlisting}
+# a0 = n, a1 = fill (low 32 bits used if XLEN=64 still), a2 = dst
+sew64:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e64, m1, tu, mu
+    vmv.v.x v1, a1
+    vse64.v v1, (a2)
+    slli    t1, t0, 3
+    add     a2, a2, t1
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+\subsection{fma64 --- double-precision fused multiply-add}
+\begin{lstlisting}
+# a0 = n, a1 = a, a2 = b, a3 = c (dst = a*b + c)
+fma64:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e64, m1, tu, mu
+    vle64.v v1, (a1)
+    vle64.v v2, (a2)
+    vle64.v v3, (a3)
+    vfmacc.vv v3, v1, v2
+    vse64.v v3, (a3)
+    slli    t1, t0, 3
+    add     a1, a1, t1
+    add     a2, a2, t1
+    add     a3, a3, t1
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+\subsection{index64 --- indexed load at SEW=64}
+\begin{lstlisting}
+# a0 = n, a1 = base, a2 = index vector, a3 = dst
+index64:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e64, m1, tu, mu
+    vle64.v   v2, (a2)
+    vluxei64.v v1, (a1), v2
+    vse64.v   v1, (a3)
+    slli    t1, t0, 3
+    add     a2, a2, t1
+    add     a3, a3, t1
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
 \section{Two harts, local memory, DMA}
 
 The organisation that justifies a second hart is the one the wide machines are for: one hart runs the operating system and short vector work, the other runs a longer kernel from a local memory. Both are RV64 with the same vector claim. A DMA engine moves blocks into that local memory. The DMA is a bus master programmed by stores, in the same style as the blitter on BX-16. It does not fetch vector instructions.

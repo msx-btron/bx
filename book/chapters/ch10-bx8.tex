@@ -31,21 +31,141 @@ Four elements fill a register. With four lanes, a vector add retires in one cycl
 
 The load unit takes the base address from an integer register, checks that \texttt{vl} bytes lie in a mapped region, and then consumes \texttt{vl} bus beats when the arbiter grants them. Video refresh has priority on that arbiter. A vector load that loses the bus for a scanline simply waits. That wait is the MSX-compatible behaviour worth preserving: the picture does not tear because a copy loop held the bus.
 
-\section{A kernel that is legal everywhere}
+\section{Opcode map for SVM-8}
 
+Opcodes are listed by traditional class. Only the forms legal under ELEN\,=\,8 and LMUL\,=\,1 appear. Every instruction that is not listed is illegal and must trap.
+
+\subsection{Configuration}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vsetvl}   rd, rs1, rs2
+  \item \texttt{vsetvli}  rd, rs1, vtypei
+  \item \texttt{vsetivli} (optional; if omitted, the profile card says so)
+\end{itemize}
+
+\subsection{Unit-stride load and store (EEW = 8)}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vle8.v}   vd, (rs1), vm
+  \item \texttt{vse8.v}   vs3, (rs1), vm
+\end{itemize}
+
+\subsection{Integer arithmetic (vector-vector and vector-scalar)}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vadd.vv} / \texttt{vadd.vx}
+  \item \texttt{vsub.vv} / \texttt{vsub.vx}
+  \item \texttt{vrsub.vx}
+  \item \texttt{vand.vv} / \texttt{vand.vx}
+  \item \texttt{vor.vv}  / \texttt{vor.vx}
+  \item \texttt{vxor.vv} / \texttt{vxor.vx}
+  \item \texttt{vsll.vv} / \texttt{vsll.vx}
+  \item \texttt{vsrl.vv} / \texttt{vsrl.vx}
+  \item \texttt{vsra.vv} / \texttt{vsra.vx}
+\end{itemize}
+
+\subsection{Compare (produce mask in \texttt{v0})}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vmseq.vv} / \texttt{vmseq.vx}
+  \item \texttt{vmsne.vv} / \texttt{vmsne.vx}
+  \item \texttt{vmsltu.vv}/ \texttt{vmsltu.vx}
+  \item \texttt{vmslt.vv} / \texttt{vmslt.vx}
+  \item \texttt{vmsleu.vv}/ \texttt{vmsleu.vx}
+  \item \texttt{vmsle.vv} / \texttt{vmsle.vx}
+  \item \texttt{vmsgtu.vx}, \texttt{vmsgt.vx}
+\end{itemize}
+
+\subsection{Saturating arithmetic}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vsadd.vv} / \texttt{vsadd.vx}
+  \item \texttt{vssub.vv} / \texttt{vssub.vx} (optional on the first image)
+\end{itemize}
+
+\subsection{Move and splat}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vmv.v.v}
+  \item \texttt{vmv.v.x}
+  \item \texttt{vmv.v.i}
+  \item \texttt{vmv.x.s} (scalar extract of element 0)
+  \item \texttt{vmv.s.x} (scalar insert into element 0)
+\end{itemize}
+
+\subsection{Mask logicals (required because compare is present)}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vmand.mm}, \texttt{vmnand.mm}, \texttt{vmandn.mm}
+  \item \texttt{vmor.mm},  \texttt{vmnor.mm},  \texttt{vmorn.mm}
+  \item \texttt{vmxor.mm}, \texttt{vmxnor.mm}
+  \item \texttt{vcpop.m},  \texttt{vfirst.m}
+\end{itemize}
+
+No widening, no narrowing, no stride, no indexed, no reduction, no slide, no floating-point, and no custom geometry opcodes are legal.
+
+\section{Assembler kernels that must run}
+
+These routines are the acceptance set for every BX-8 image. They use only the opcodes listed above and must produce bit-identical results to a scalar reference model.
+
+\subsection{fill8 --- fill a region with a byte}
 \begin{lstlisting}
-# fill n bytes at a0 with the byte in a1
-# SVM-8 and every wider profile
-loop:
-    vsetvli t0, a0, e8, m1, tu, mu
+# a0 = n, a1 = fill byte, a2 = dst
+fill8:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e8, m1, tu, mu
     vmv.v.x v1, a1
     vse8.v  v1, (a2)
     add     a2, a2, t0
     sub     a0, a0, t0
-    bnez    a0, loop
+    bnez    a0, 1b
+2:  ret
 \end{lstlisting}
 
-The listing uses a vector-scalar add as a broadcast so that the first implementation does not depend on \texttt{vmv.v.x}. When you add the move instruction, prefer it. The shape of the loop is the one Chapter~\ref{ch:tests} runs on all four machines: set VL, operate, store, advance, repeat.
+\subsection{copy8 --- unit-stride byte copy}
+\begin{lstlisting}
+# a0 = n, a1 = src, a2 = dst
+copy8:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e8, m1, tu, mu
+    vle8.v  v1, (a1)
+    vse8.v  v1, (a2)
+    add     a1, a1, t0
+    add     a2, a2, t0
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+\subsection{mask8 --- selective fill under a generated mask}
+\begin{lstlisting}
+# a0 = n, a1 = fill, a2 = dst, a3 = threshold
+# bytes where *src < threshold become fill
+mask8:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e8, m1, tu, mu
+    vle8.v  v1, (a2)
+    vmsltu.vx v0, v1, a3
+    vmv.v.x v2, a1
+    vse8.v  v2, (a2), v0.t
+    add     a2, a2, t0
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+\subsection{add8 --- element-wise byte add with saturation}
+\begin{lstlisting}
+# a0 = n, a1 = src0, a2 = src1, a3 = dst
+add8:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e8, m1, tu, mu
+    vle8.v  v1, (a1)
+    vle8.v  v2, (a2)
+    vsadd.vv v3, v1, v2
+    vse8.v  v3, (a3)
+    add     a1, a1, t0
+    add     a2, a2, t0
+    add     a3, a3, t0
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+The shape of every loop is the one Chapter~\ref{ch:tests} runs on all four machines: set VL, operate, store, advance, repeat.
 
 \section{What you elaborate}
 
@@ -54,8 +174,9 @@ typedef enum { SVM8, SVM16, ZVE32F, V64 } Profile;
 Profile profile = SVM8;
 Integer elen = 8;
 Integer vlen = 32;
-Integer lanes = 1;
+Integer lanes = 1;          // or 4
 Bool xsvm = False;
+Bool vsetivli = False;      // True only if decoder already has it
 \end{lstlisting}
 
 The same package, with different parameters, is BX-16 and the later machines. BX-8 is the parameter set in which most of the package is illegal-instruction logic rather than arithmetic.

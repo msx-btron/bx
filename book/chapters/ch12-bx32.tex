@@ -27,6 +27,111 @@ The change a programmer notices is not the wider bus. It is that SEW=32 no longe
 
 Prefer, in new BX-32 software, the standard sequence of fused multiply-adds over Xsvm. Keep Xsvm for kernels you have measured, and for comparison with the BX-16 geometry image.
 
+\section{Opcode map for Zve32f (BX-32)}
+
+All opcodes of SVM-16 remain legal. The additional classes required by Zve32f are listed below. SEW may be 8, 16 or 32.
+
+\subsection{Configuration}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vsetvl}, \texttt{vsetvli}, \texttt{vsetivli}
+\end{itemize}
+
+\subsection{Unit-stride, stride and indexed load/store}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vle8/16/32.v}, \texttt{vse8/16/32.v}
+  \item \texttt{vlse8/16/32.v}, \texttt{vsse8/16/32.v}
+  \item \texttt{vluxei8/16/32.v}, \texttt{vloxei8/16/32.v}
+  \item \texttt{vsuxei8/16/32.v}, \texttt{vsoxei8/16/32.v}
+\end{itemize}
+
+\subsection{Integer arithmetic (SEW = 8, 16, 32)}
+\begin{itemize}[leftmargin=1.5em]
+  \item All \texttt{vadd}, \texttt{vsub}, logic, shift, min/max forms of SVM-16
+  \item Widening multiply and narrowing shift (including SEW=32 destinations where LMUL allows)
+  \item Saturating add/sub
+  \item Integer reduction (\texttt{vredsum.vs} and the other integer reductions)
+  \item Slide-by-one and register gather (\texttt{vrgather.vv/vx})
+\end{itemize}
+
+\subsection{Floating-point arithmetic (SEW = 32 only)}
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{vfadd.vv/vf}, \texttt{vfsub.vv/vf}
+  \item \texttt{vfmul.vv/vf}
+  \item \texttt{vfmacc.vv/vf}, \texttt{vfnmacc.vv/vf}
+  \item \texttt{vfmsac.vv/vf}, \texttt{vfnmsac.vv/vf}
+  \item \texttt{vfmadd.vv/vf}, \texttt{vfnmadd.vv/vf}
+  \item \texttt{vfmsub.vv/vf}, \texttt{vfnmsub.vv/vf}
+  \item \texttt{vfmin.vv/vf}, \texttt{vfmax.vv/vf}
+  \item \texttt{vfsqrt.v}, \texttt{vfsgnj.vv/vf}, \texttt{vfsgnjn.vv/vf}, \texttt{vfsgnjx.vv/vf}
+  \item \texttt{vfcvt.xu.f.v}, \texttt{vfcvt.x.f.v}, \texttt{vfcvt.f.xu.v}, \texttt{vfcvt.f.x.v}
+  \item \texttt{vfwcvt.*} and \texttt{vfncvt.*} where the destination or source is 32-bit
+  \item Floating-point compare: \texttt{vmfeq}, \texttt{vmfne}, \texttt{vmflt}, \texttt{vmfle}, \texttt{vmfgt}, \texttt{vmfge}
+\end{itemize}
+
+\subsection{Mask and move}
+\begin{itemize}[leftmargin=1.5em]
+  \item Full mask logical set
+  \item \texttt{vmv.v.*}, \texttt{vfmv.v.f}, \texttt{vfmv.f.s}, \texttt{vfmv.s.f}
+\end{itemize}
+
+Xsvm remains optional and is not part of the Zve32f claim.
+
+\section{Assembler kernels that must run}
+
+In addition to every kernel of Chapters~\ref{ch:bx8} and~\ref{ch:bx16}, the following must pass.
+
+\subsection{sew32 --- word fill}
+\begin{lstlisting}
+# a0 = n, a1 = fill word, a2 = dst
+sew32:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e32, m1, tu, mu
+    vmv.v.x v1, a1
+    vse32.v v1, (a2)
+    slli    t1, t0, 2
+    add     a2, a2, t1
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+\subsection{fma32 --- fused multiply-add strip}
+\begin{lstlisting}
+# a0 = n, a1 = a, a2 = b, a3 = c (dst = a*b + c)
+fma32:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e32, m1, tu, mu
+    vle32.v v1, (a1)
+    vle32.v v2, (a2)
+    vle32.v v3, (a3)
+    vfmacc.vv v3, v1, v2
+    vse32.v v3, (a3)
+    slli    t1, t0, 2
+    add     a1, a1, t1
+    add     a2, a2, t1
+    add     a3, a3, t1
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
+\subsection{index32 --- indexed load (gather)}
+\begin{lstlisting}
+# a0 = n, a1 = base, a2 = index vector (bytes), a3 = dst
+index32:
+    beqz    a0, 2f
+1:  vsetvli t0, a0, e32, m1, tu, mu
+    vle32.v  v2, (a2)            # indices
+    vluxei32.v v1, (a1), v2
+    vse32.v  v1, (a3)
+    slli    t1, t0, 2
+    add     a2, a2, t1
+    add     a3, a3, t1
+    sub     a0, a0, t0
+    bnez    a0, 1b
+2:  ret
+\end{lstlisting}
+
 \section{Two harts}
 
 A second RV32 hart is optional. It shares memory through an arbiter you already know how to write, because BX-16 has several masters. The second hart is for a concurrent system, not a different instruction set. Both harts, if both are present, implement Zve32f or the second is a scalar only and the profile card says so. Do not build one hart with FP32 vector and another with a private opcode map.
