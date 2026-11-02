@@ -1,0 +1,258 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{times}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{cleveref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black
+}
+
+\title{\textbf{Open-Source Implementations \\of the RISC-V Vector Extension:\\
+A Comparative Overview of \\ Ara, Spatz, Vicuna, Vicuna~2, RS5, and Marian}}
+\author{Technical Survey}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The RISC-V Vector Extension (RVV), ratified in its version~1.0 form, provides a scalable, length-agnostic SIMD paradigm that is particularly attractive for embedded, edge, and high-performance computing. This article presents a detailed scientific overview of the major mature open-source hardware implementations that support full or substantial subsets of RVV, with emphasis on element widths of 16, 32, and 64~bits. We examine six prominent designs---Ara (and its evolution Ara2), Spatz, Vicuna, Vicuna~2, RS5, and Marian---comparing their microarchitectures, supported extension subsets (\texttt{Zve32x}, \texttt{Zve32f}, \texttt{Zve64d}, full \texttt{V}, and \texttt{Zvk}), integration models, configurability, and reported Power-Performance-Area (PPA) characteristics. A multi-criteria ranking is derived that balances ISA completeness, silicon maturity, energy efficiency, area efficiency, and ecosystem readiness. The survey concludes with observations on remaining gaps and promising directions for future open-source vector processors.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+The RISC-V Vector Extension (RVV)~\cite{riscv-v-spec} introduces a flexible vector architecture whose vector length (\texttt{VLEN}) is implementation-defined and whose element width (\texttt{SEW}/\texttt{EEW}) can be selected dynamically. The specification defines both a full application-class extension \texttt{V} (requiring at least \texttt{Zve64d} and a minimum \texttt{VLEN} of 128~bits) and a family of embedded subsets (\texttt{Zve32x}, \texttt{Zve32f}, \texttt{Zve64x}, \texttt{Zve64f}, \texttt{Zve64d}). These subsets allow implementers to trade ISA completeness for silicon cost, making RVV attractive across the spectrum from tiny microcontrollers to high-performance accelerators.
+
+Open-source hardware has played a decisive role in the rapid adoption of RVV. Several academic and industrial groups have released production-quality SystemVerilog (or Chisel) designs that can be synthesized for FPGA or ASIC targets. This article focuses on six of the most mature and widely referenced implementations:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Ara} / Ara2 (PULP Platform, ETH Z\"urich \& University of Bologna)~\cite{ara2020,ara2-2024};
+  \item \textbf{Spatz} (PULP Platform)~\cite{spatz2023};
+  \item \textbf{Vicuna} and its successor \textbf{Vicuna~2}~\cite{vicuna,vicuna2};
+  \item \textbf{RS5} (GAPH, PUCRS)~\cite{rs5};
+  \item \textbf{Marian} (SoC Hub / Tampere University)~\cite{marian2024}.
+\end{itemize}
+
+We deliberately exclude pure software simulators, incomplete academic prototypes that have not been released under a permissive license, and commercial closed-source IP. The goal is a technically rigorous comparison that can guide architects choosing an open-source vector engine for a new SoC or research platform.
+
+\section{Background on the RISC-V Vector Extension}
+
+\subsection{Key Architectural Concepts}
+
+RVV organizes computation around 32 vector registers (\texttt{v0}--\texttt{v31}), each of width \texttt{VLEN} bits. The active vector length \texttt{VL} and the element width \texttt{SEW} are controlled by the \texttt{vsetvli}/\texttt{vsetivli} family of instructions. Grouping of registers (\texttt{LMUL}) allows longer logical vectors. Memory operations support unit-strided, strided, and indexed (gather/scatter) addressing; arithmetic units provide integer, fixed-point, and floating-point operations with widening and narrowing variants; mask and permutation instructions complete the ISA.
+
+The embedded subsets are defined as follows (simplified):
+
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Extension & Min.\ \texttt{VLEN} & Supported EEW & FP support \\
+\midrule
+\texttt{Zve32x} & 32 & 8, 16, 32 & none \\
+\texttt{Zve32f} & 32 & 8, 16, 32 & FP32 \\
+\texttt{Zve64x} & 64 & 8, 16, 32, 64 & none \\
+\texttt{Zve64f} & 64 & 8, 16, 32, 64 & FP32 \\
+\texttt{Zve64d} & 64 & 8, 16, 32, 64 & FP32+FP64 \\
+\texttt{V}      & 128 & \ldots & full (\texttt{Zve64d}+) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Implementation Challenges}
+
+Designing an efficient RVV engine involves several well-known tensions:
+
+\begin{itemize}
+  \item \textbf{Lane-based vs.\ centralized microarchitecture.} Scaling the number of functional units while keeping the Vector Register File (VRF) multi-ported and low-latency.
+  \item \textbf{Chaining and hazard detection.} Allowing a dependent instruction to start as soon as the first elements of its sources are ready.
+  \item \textbf{Memory bandwidth.} Matching the compute throughput of many lanes to a realistic memory hierarchy.
+  \item \textbf{Scalar--vector interface.} Efficient offload of vector instructions from a scalar host core (CVA6, Snitch, Ibex/CV32E40X, etc.).
+  \item \textbf{Configurability vs.\ verification cost.} Highly parametric designs increase the verification burden.
+\end{itemize}
+
+\section{Detailed Examination of the Implementations}
+
+\subsection{Ara and Ara2}
+
+Ara is a lane-based vector co-processor that attaches to the CVA6 (formerly Ariane) application-class core. Each lane contains a slice of the VRF, an integer ALU, a multiplier, and a floating-point unit. A central sequencer, a Vector Load/Store Unit (VLSU), and a Slide Unit (SLDU) coordinate the lanes. The design is parametric in the number of lanes (typically 2--16).
+
+Ara originally implemented an early draft of RVV; Ara2 brought the design to full compliance with the frozen RVV~1.0 specification, including all integer, floating-point, mask, and permutation instructions required by the \texttt{V} extension (ELEN\,=\,64). Silicon results in GlobalFoundries 22\,nm FD-SOI demonstrate:
+
+\begin{itemize}
+  \item Clock frequencies above 1\,GHz (typical corner);
+  \item Peak energy efficiency of approximately 38--41\,DP-GFLOPS/W;
+  \item Functional-unit utilization exceeding 95\,\% on long-vector matrix-multiplication kernels;
+  \item Area that scales roughly linearly with the number of lanes, with the SLDU becoming a critical path for large configurations.
+\end{itemize}
+
+Ara remains the reference high-performance open-source RVV engine and the foundation upon which Marian is built.
+
+\subsection{Spatz}
+
+Spatz targets a different point in the design space: compact vector processing elements for tightly-coupled multi-core clusters that share a multi-banked L1 scratchpad. Each Spatz instance is paired with a lightweight Snitch scalar core and features a very small latch-based VRF (typically 2\,KiB, corresponding to \texttt{VLEN}\,=\,512). The architecture comprises a Vector Arithmetic Unit (VAU) with multiple transprecision FPUs and an integer unit, a VLSU with multiple narrow memory ports, and a Vector Slide Unit.
+
+Spatz implements the \texttt{Zve64d} subset. In a dual-core cluster fabricated in GlobalFoundries 12\,nm, the design achieves:
+
+\begin{itemize}
+  \item $>95\,\%$ FPU utilization on double-precision matrix multiplication and 2-D convolution;
+  \item Energy efficiency approaching 100\,DP-GFLOPS/W;
+  \item Outstanding area efficiency (reported 171\,DP-GFLOPS/W/mm$^2$).
+\end{itemize}
+
+The key insight of Spatz is that a modest VRF is sufficient when the compute-to-control ratio is high and the memory system is local and high-bandwidth.
+
+\subsection{Vicuna and Vicuna~2}
+
+Vicuna is an embedded vector co-processor that communicates with a scalar host (Ibex or CV32E40X) through the CORE-V eXtension Interface (CV-X-IF). It targets the \texttt{Zve32x} subset (8/16/32-bit integer and fixed-point). The microarchitecture is organized as a set of configurable pipelines that can host different functional units (VLSU, VALU, VMUL, VSLD, VELEM, and later VDIV).
+
+Vicuna~2 extends the original design with:
+
+\begin{itemize}
+  \item Complete support for vector division (finishing \texttt{Zve32x});
+  \item Optional \texttt{Zve32f} (single-precision floating-point) and \texttt{Zvfh} (half-precision) via integration of the CV-FPU;
+  \item Greater flexibility in pipeline width (\texttt{VLANE\_W}) and register width (\texttt{VREG\_W}).
+\end{itemize}
+
+Vicuna and Vicuna~2 excel in area-constrained embedded systems where 64-bit elements and double-precision floating-point are unnecessary. Their high degree of configurability makes them attractive for design-space exploration studies.
+
+\subsection{RS5}
+
+RS5 is a 4-stage in-order RV32 core developed at PUCRS. It optionally implements a subset of \texttt{Zve32x} together with a configurable \texttt{VLEN} (and \texttt{LLEN}). Because the scalar core itself does not implement the \texttt{F} extension, floating-point vector support is absent. The vector unit is integrated more tightly than a pure co-processor, sharing the pipeline resources of the host core.
+
+RS5 is smaller and less mature than Ara or Spatz, yet it demonstrates that a modest vector capability can be added to a classic 5-stage (or 4-stage) microcontroller-class pipeline with limited area overhead. It also supports a variety of other optional extensions (bit-manipulation, cryptography, custom Kyber instructions), making it a flexible platform for educational and research SoCs.
+
+\subsection{Marian}
+
+Marian is a derivative of Ara2 that adds the full RISC-V Vector Cryptography Extension suite (\texttt{Zvk}, including \texttt{Zvkned}, \texttt{Zvknh}, \texttt{Zvkg}, \texttt{Zvksed}, \texttt{Zvksh}, etc.). A dedicated crypto unit is inserted into the Ara pipeline; it receives operands from the VRF, performs AES, SHA-2, SM3/SM4 and GCM operations on 128- or 256-bit element groups, and writes results back. Marian has been prototyped on a Xilinx Virtex UltraScale+ FPGA and is targeted for a 22\,nm tape-out.
+
+Because Marian inherits Ara's mature vector infrastructure, it inherits full \texttt{V} support while adding high-throughput bulk cryptography. Measured speed-ups on AES and SHA kernels relative to pure software (OpenSSL) reach one to two orders of magnitude in cycle count and instruction count.
+
+\section{Comparative Analysis and Ranking}
+
+We evaluate the six designs along five orthogonal axes, each scored on a 1--5 scale (higher is better):
+
+\begin{enumerate}
+  \item \textbf{ISA Completeness} --- breadth of supported RVV subsets and additional extensions;
+  \item \textbf{Silicon / FPGA Maturity} --- existence of silicon results, rigorous verification, and long-term maintenance;
+  \item \textbf{Energy Efficiency} --- reported GFLOPS/W or equivalent metrics on representative kernels;
+  \item \textbf{Area Efficiency / Compactness} --- suitability for area-constrained or multi-core cluster designs;
+  \item \textbf{Ecosystem \& Configurability} --- quality of documentation, toolchain support, and ease of parameterization.
+\end{enumerate}
+
+\begin{table}[htbp]
+\centering
+\caption{Multi-criteria ranking of the surveyed open-source RVV implementations (scores 1--5).}
+\label{tab:ranking}
+\begin{tabular}{@{}lccccc|c@{}}
+\toprule
+Design & ISA & Maturity & Energy & Area & Ecosystem & \textbf{Total} \\
+\midrule
+Ara / Ara2 & 5 & 5 & 5 & 3 & 5 & \textbf{23} \\
+Spatz      & 4 & 4 & 5 & 5 & 4 & \textbf{22} \\
+Marian     & 5 & 3 & 4 & 3 & 3 & \textbf{18} \\
+Vicuna~2   & 3 & 3 & 3 & 4 & 4 & \textbf{17} \\
+Vicuna     & 2 & 3 & 3 & 4 & 3 & \textbf{15} \\
+RS5        & 2 & 2 & 2 & 4 & 3 & \textbf{13} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Interpretation of the Ranking}
+
+\begin{itemize}
+  \item \textbf{Ara/Ara2} occupies the top position because it combines full RVV~1.0 compliance, extensive silicon characterization, excellent energy efficiency on long vectors, and a well-maintained open-source repository. Its only relative weakness is area: the design is optimized for high absolute throughput rather than minimal silicon footprint.
+  \item \textbf{Spatz} is a very close second. By deliberately constraining the VRF size and targeting shared-L1 clusters it achieves superior area efficiency and still delivers state-of-the-art energy efficiency. It is the preferred choice when many compact vector engines must be integrated into a single die.
+  \item \textbf{Marian} inherits Ara's strengths and adds a unique capability (vector cryptography). Its lower maturity score reflects the more recent public release and the still-ongoing ASIC flow.
+  \item \textbf{Vicuna~2} is the strongest pure-embedded contender. Its support for \texttt{Zve32f}/\texttt{Zvfh} and the highly configurable pipeline organization make it ideal for design-space exploration of low-power 32-bit vector systems.
+  \item \textbf{Vicuna} (original) remains useful but is superseded by Vicuna~2 for new designs.
+  \item \textbf{RS5} demonstrates that a modest vector unit can be added to a classic microcontroller pipeline; it is attractive for educational platforms and highly constrained SoCs, yet lags in both ISA coverage and published PPA data.
+\end{itemize}
+
+\section{Discussion and Future Directions}
+
+Several observations emerge from the comparison.
+
+First, the open-source RVV landscape has matured rapidly: full 64-bit floating-point vector support (Ara, Spatz) and even vector cryptography (Marian) are now available under permissive licenses. Second, there is a clear bifurcation between high-throughput lane-based designs optimized for long vectors (Ara) and compact designs optimized for short-to-medium vectors inside multi-core clusters (Spatz). Third, the embedded 32-bit space (Vicuna~2, RS5) still offers substantial room for further optimization, particularly with respect to memory hierarchy and power gating.
+
+Open challenges that remain largely unaddressed by the current generation of open-source engines include:
+
+\begin{itemize}
+  \item Robust support for precise traps and virtual memory (required for full Linux capability with the \texttt{V} extension);
+  \item Efficient handling of very short vectors without under-utilizing wide datapaths;
+  \item Formal verification of the more complex units (especially the crypto datapaths of Marian);
+  \item Standardized, high-bandwidth scalar--vector interfaces beyond CV-X-IF and the custom interfaces used by Ara/Spatz.
+\end{itemize}
+
+Future work is likely to focus on multi-core vector clusters that combine the best of Ara-style and Spatz-style microarchitectures, on matrix extensions that build on top of the vector register file, and on tighter integration with domain-specific accelerators for machine learning and cryptography.
+
+\section{Conclusion}
+
+This survey has examined the six most mature open-source implementations of the RISC-V Vector Extension that support 16-, 32-, and (where applicable) 64-bit elements. Ara/Ara2 stands as the reference high-performance design, Spatz as the leading compact cluster-oriented engine, Marian as the first open vector-cryptography solution, and Vicuna~2 as the most flexible embedded co-processor. RS5 illustrates a minimal-overhead integration path for microcontroller-class cores.
+
+The availability of these designs under open licenses has dramatically lowered the barrier to experimenting with and deploying RVV. Continued community investment in verification, documentation, and multi-core integration will further accelerate the adoption of vector processing across the RISC-V ecosystem.
+
+\begin{thebibliography}{99}
+
+\bibitem{riscv-v-spec}
+RISC-V International,
+``The RISC-V Instruction Set Manual, Volume~I: Unprivileged Architecture,''
+Version of the Vector Extension, 2021--2024.
+
+\bibitem{ara2020}
+M.~Cavalcante et~al.,
+``Ara: A 1-GHz+ Scalable and Energy-Efficient RISC-V Vector Processor with Multiprecision Floating-Point Support in 22-nm FD-SOI,''
+\emph{IEEE Trans.\ VLSI Syst.}, vol.~28, no.~2, pp.~530--543, 2020.
+
+\bibitem{ara2-2024}
+M.~Perotti et~al.,
+``Ara2: Exploring Single- and Multi-Core Vector Processing with an Efficient RVV~1.0 Compliant Open-Source Processor,''
+\emph{IEEE Trans.\ Comput.}, 2024.
+
+\bibitem{spatz2023}
+M.~Perotti et~al.,
+``Spatz: Clustering Compact RISC-V-Based Vector Units to Maximize Computing Efficiency,''
+\emph{IEEE Trans.\ Comput.-Aided Des.\ Integr.\ Circuits Syst.}, 2025 (early access / arXiv:2309.10137).
+
+\bibitem{vicuna}
+M.~Platzer and P.~Puschner,
+``Vicuna: A Timing-Predictable RISC-V Vector Coprocessor for Concurrent Real-Time Systems,''
+and subsequent open-source release (vproc/vicuna).
+
+\bibitem{vicuna2}
+J.~P.~Jones et~al.,
+``Vicuna~2.0: A Configurable RISC-V Embedded Vector Hardware Platform,''
+RISC-V Summit Europe, 2025.
+
+\bibitem{rs5}
+GAPH / PUCRS,
+``RS5: A Parameterizable 4-Stage Pipelined RISC-V Processor with Optional Zve32x Support,''
+GitHub repository and associated theses, 2024--2025.
+
+\bibitem{marian2024}
+T.~Szymkowiak, E.~Isufi, and M.-J.~Saarinen,
+``Marian: An Open Source RISC-V Processor with Zvk Vector Cryptography Extensions,''
+IACR ePrint 2024/1449; ACM CCS 2024 poster.
+
+\end{thebibliography}
+
+\end{document}
