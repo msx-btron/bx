@@ -23,50 +23,114 @@ Masks, slides, and reductions at SEW=64 are required. Indexed accesses are requi
 
 \section{Opcode map for Zve64d / V (BX-64)}
 
-All opcodes of Zve32f remain legal. The additional classes and element widths required by Zve64d (and by V) are listed below.
+All opcodes of Zve32f remain legal. The additional element widths and FP64 operations use the same rigid two-line matrix. SEW may be 8, 16, 32 or 64. Every major class has an explicit entry diagram below or inherits the diagram from the lower profile.
 
 \subsection{Configuration}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vsetvl}, \texttt{vsetvli}, \texttt{vsetivli}
-\end{itemize}
 
-\subsection{Load and store (all legal EEW)}
-\begin{itemize}[leftmargin=1.5em]
-  \item Unit-stride: \texttt{vle8/16/32/64.v}, \texttt{vse8/16/32/64.v}
-  \item Stride: \texttt{vlse*}, \texttt{vsse*}
-  \item Indexed unordered/ordered: \texttt{vluxei*}, \texttt{vloxei*}, \texttt{vsuxei*}, \texttt{vsoxei*}
-\end{itemize}
+Identical to the lower profiles (see Chapter~\ref{ch:bx8}).
 
-\subsection{Integer arithmetic (SEW = 8, 16, 32, 64)}
-\begin{itemize}[leftmargin=1.5em]
-  \item Full set of add/sub, logic, shift, min/max, compare
-  \item Widening multiply (up to EEW=64) and narrowing shift/clip
-  \item Saturating arithmetic
-  \item Integer reductions
-  \item Slides, \texttt{vrgather}, \texttt{vcompress}
-\end{itemize}
+\subsection{Unit-stride load at SEW=64 --- \texttt{vle64.v}}
 
-\subsection{Floating-point arithmetic}
-\begin{itemize}[leftmargin=1.5em]
-  \item All FP32 operations of Zve32f
-  \item FP64 counterparts:
-    \begin{itemize}
-      \item \texttt{vfadd.vv/vf}, \texttt{vfsub.vv/vf}, \texttt{vfmul.vv/vf}
-      \item \texttt{vfmacc}, \texttt{vfnmacc}, \texttt{vfmsac}, \texttt{vfnmsac}
-      \item \texttt{vfmadd}, \texttt{vfnmadd}, \texttt{vfmsub}, \texttt{vfnmsub}
-      \item \texttt{vfmin}, \texttt{vfmax}, \texttt{vfsqrt}, sign-injection
-      \item Conversions between FP64, FP32 and integer SEW=64
-      \item FP64 compare producing masks
-    \end{itemize}
-\end{itemize}
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{3}{|c|}{N} &
+\multicolumn{1}{c|}{E} &
+\multicolumn{2}{c|}{P} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{L} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{W} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+N & = nf \\
+E & = mew \\
+P & = mop (00 = unit-stride) \\
+M & = vm \\
+L & = lumop (00000) \\
+S & = rs1 (base) \\
+W & = width (111 = 64-bit) \\
+D & = vd \\
+O & = 0000111 \\
+\end{tabular}
+\end{center}
+
+Stride and indexed forms keep the same layout; only the mop and width fields change (width = 111 for EEW=64).
+
+\subsection{Integer / FP arithmetic (OP-V) at any SEW including 64}
+
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{6}{|c|}{F} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{S} &
+\multicolumn{4}{c|}{T} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{T} &
+\multicolumn{3}{c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+F & = funct6 \\
+M & = vm \\
+S & = vs2 \\
+T & = vs1 / rs1 / fs1 \\
+C & = funct3 (OPIVV / OPIVX / OPFVV / OPFVF \ldots) \\
+D & = vd \\
+O & = 1010111 \\
+\end{tabular}
+\end{center}
+
+All integer instructions of Zve32f are legal at SEW=64. All FP32 instructions remain legal; their FP64 counterparts use the same funct6 values with SEW=64.
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Class & examples & notes \\
+\midrule
+Integer & \texttt{vadd}, \texttt{vwmul}, \texttt{vredsum}, \texttt{vrgather} & full set \\
+FP32   & \texttt{vfadd}, \texttt{vfmacc}, \texttt{vfcvt} & from BX-32 \\
+FP64   & \texttt{vfadd}, \texttt{vfmacc}, \texttt{vfcvt} at SEW=64 & required for Zve64d/V \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+If the claim is the full application extension V, every additional instruction required by the V specification must be present and the V bit set in \texttt{misa}. A Zve64d implementation omits the V bit and may omit instructions that V adds beyond Zve64d.
 
 \subsection{Mask and move}
-\begin{itemize}[leftmargin=1.5em]
-  \item Full mask logical and population set
-  \item \texttt{vmv}, \texttt{vfmv} for both single and double
-\end{itemize}
 
-If the claim is the full application extension V, every instruction required by the V specification (including the remaining reductions, more permute forms, and the complete conversion set) must be present and the V bit set in \texttt{misa}. Zve64d implementations omit the V bit and may omit instructions that V adds beyond Zve64d.
+Full mask set plus the FP move variants for both single and double.
 
 Xsvm must be left off on any image that claims V.
 
@@ -76,7 +140,7 @@ In addition to every kernel of the lower profiles, the following must pass on BX
 
 \subsection{sew64 --- double-word fill}
 \begin{lstlisting}
-# a0 = n, a1 = fill (low 32 bits used if XLEN=64 still), a2 = dst
+# a0 = n, a1 = fill, a2 = dst
 sew64:
     beqz    a0, 2f
 1:  vsetvli t0, a0, e64, m1, tu, mu

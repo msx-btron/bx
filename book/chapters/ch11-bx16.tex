@@ -37,75 +37,189 @@ Both instructions are undisturbed outside \texttt{vl}. Both are absent from the 
 
 \section{Opcode map for SVM-16}
 
-Everything legal on SVM-8 remains legal. The additional classes and forms required by SVM-16 are listed below. SEW may be 8 or 16; LMUL\,>\,1 is permitted only when the destination is a widening group.
+Everything legal on SVM-8 remains legal. The additional classes required by SVM-16 are shown with the same rigid two-line matrix. SEW may be 8 or 16. The complete cross-profile contract and full opcode summary appear after the four machines, in Chapter~\ref{ch:bsv}.
 
 \subsection{Configuration}
+
+Identical to SVM-8. \texttt{vsetivli} is now required.
+
+\subsection{Unit-stride load/store (EEW = 8 and 16)}
+
+Same layout as SVM-8. Width field:
 \begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vsetvl}, \texttt{vsetvli}, \texttt{vsetivli}
+  \item 000 = 8-bit (\texttt{vle8.v}/\texttt{vse8.v})
+  \item 101 = 16-bit (\texttt{vle16.v}/\texttt{vse16.v})
 \end{itemize}
 
-\subsection{Unit-stride load and store}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vle8.v}, \texttt{vse8.v}
-  \item \texttt{vle16.v}, \texttt{vse16.v}
-\end{itemize}
+\subsection{Constant-stride load --- \texttt{vlse16.v}}
 
-\subsection{Constant-stride load and store}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vlse8.v}, \texttt{vsse8.v}
-  \item \texttt{vlse16.v}, \texttt{vsse16.v}
-\end{itemize}
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{3}{|c|}{N} &
+\multicolumn{1}{c|}{E} &
+\multicolumn{2}{c|}{P} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{S} &
+\multicolumn{4}{c|}{B} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{W} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
 
-\subsection{Integer arithmetic (all SEW = 8 and 16 forms)}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vadd.vv/vx}, \texttt{vsub.vv/vx}, \texttt{vrsub.vx}
-  \item \texttt{vand.vv/vx}, \texttt{vor.vv/vx}, \texttt{vxor.vv/vx}
-  \item \texttt{vsll.vv/vx}, \texttt{vsrl.vv/vx}, \texttt{vsra.vv/vx}
-  \item \texttt{vminu.vv/vx}, \texttt{vmin.vv/vx}, \texttt{vmaxu.vv/vx}, \texttt{vmax.vv/vx}
-\end{itemize}
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+N & = nf \\
+E & = mew \\
+P & = mop (10 = strided) \\
+M & = vm \\
+S & = rs2 (stride) \\
+B & = rs1 (base) \\
+W & = width (101 = 16-bit) \\
+D & = vd \\
+O & = 0000111 \\
+\end{tabular}
+\end{center}
 
-\subsection{Widening multiply and narrowing shift}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vwmul.vv}, \texttt{vwmul.vx}   (SEW=8$\to$16, SEW=16$\to$32)
-  \item \texttt{vwmulu.vv}, \texttt{vwmulu.vx}
-  \item \texttt{vwmulsu.vv}, \texttt{vwmulsu.vx}
-  \item \texttt{vnsrl.wv}, \texttt{vnsrl.wx}
-  \item \texttt{vnsra.wv}, \texttt{vnsra.wx}
-  \item \texttt{vnclip.wv}, \texttt{vnclip.wx}, \texttt{vnclipu.wv}, \texttt{vnclipu.wx}
-\end{itemize}
+Store form uses major opcode 0100111.
 
-\subsection{Saturating arithmetic}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vsadd.vv/vx}, \texttt{vssub.vv/vx}
-  \item \texttt{vsaddu.vv/vx}, \texttt{vssubu.vv/vx}
-\end{itemize}
+\subsection{Integer arithmetic (SEW = 8, 16)}
 
-\subsection{Compare and mask}
-\begin{itemize}[leftmargin=1.5em]
-  \item All \texttt{vms*} forms of SVM-8, plus the corresponding SEW=16 variants
-  \item Mask logicals: \texttt{vmand.mm} \ldots \texttt{vmxnor.mm}
-  \item \texttt{vcpop.m}, \texttt{vfirst.m}
-\end{itemize}
+Same OP-V layout as SVM-8. Additional instructions:
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & funct6 & notes \\
+\midrule
+\texttt{vminu}/\texttt{vmin} & 000100 / 000101 & vv / vx \\
+\texttt{vmaxu}/\texttt{vmax} & 000110 / 000111 & vv / vx \\
+\texttt{vsaddu}/\texttt{vsadd} & 100000 / 100001 & saturating \\
+\texttt{vssubu}/\texttt{vssub} & 100010 / 100011 & saturating \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Widening multiply and narrowing}
+
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{6}{|c|}{F} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{S} &
+\multicolumn{4}{c|}{T} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{T} &
+\multicolumn{3}{c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+F & = funct6 \\
+M & = vm \\
+S & = vs2 \\
+T & = vs1 / rs1 \\
+C & = funct3 (OPIVV / OPIVX) \\
+D & = vd (group for widening) \\
+O & = 1010111 \\
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & funct6 & width rule \\
+\midrule
+\texttt{vwmul}   & 111011 & SEW $\to$ 2$\times$SEW \\
+\texttt{vwmulu}  & 111000 & unsigned \\
+\texttt{vwmulsu} & 111010 & mixed \\
+\texttt{vnsrl}   & 101100 & narrowing shift \\
+\texttt{vnsra}   & 101101 & narrowing arithmetic \\
+\texttt{vnclipu}/\texttt{vnclip} & 101110 / 101111 & narrowing clip \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \subsection{Reduction and slide}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vredsum.vs}
-  \item \texttt{vslide1up.vx}, \texttt{vslide1down.vx}
-\end{itemize}
 
-\subsection{Move and splat}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vmv.v.v}, \texttt{vmv.v.x}, \texttt{vmv.v.i}
-  \item \texttt{vmv.x.s}, \texttt{vmv.s.x}
-\end{itemize}
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & funct6 / notes \\
+\midrule
+\texttt{vredsum.vs} & 000000 (OPMVV) \\
+\texttt{vslide1up.vx} & 001110 (OPIVX) \\
+\texttt{vslide1down.vx} & 001111 (OPIVX) \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \subsection{Optional Xsvm (custom-0)}
-\begin{itemize}[leftmargin=1.5em]
-  \item matrix-vector: four rows in \texttt{v8}--\texttt{v11} $\times$ \texttt{vs2} $\to$ \texttt{vd}
-  \item cross-product: \texttt{vs2} $\times$ \texttt{vs1} $\to$ \texttt{vd} (vl forced $\ge$ 3)
-\end{itemize}
 
-No floating-point, no indexed load/store, and no gather-permute beyond slide-by-one are required.
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{6}{|c|}{F} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{S} &
+\multicolumn{4}{c|}{X} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{X} &
+\multicolumn{3}{c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+F & = custom funct6 \\
+M & = vm \\
+S & = vs2 \\
+X & = unused / fixed \\
+C & = custom funct3 \\
+D & = vd \\
+O & = 0001011 (custom-0) \\
+\end{tabular}
+\end{center}
+
+Matrix and cross-product are distinguished by the custom funct6 / funct3 values documented in the profile card. They are illegal when \texttt{xsvm = False}.
 
 \section{Assembler kernels that must run}
 
@@ -129,15 +243,14 @@ sew16:
 \subsection{vwmul16 --- widening multiply then narrow with saturation}
 \begin{lstlisting}
 # a0 = n, a1 = src0 (SEW16), a2 = src1, a3 = dst (SEW16)
-# product kept in 32-bit group, then narrowed
 vwmul16:
     beqz    a0, 2f
 1:  vsetvli t0, a0, e16, m1, tu, mu
     vle16.v v2, (a1)
     vle16.v v4, (a2)
-    vwmul.vv v8, v2, v4          # LMUL=2 destination
+    vwmul.vv v8, v2, v4
     vsetvli t0, a0, e16, m1, tu, mu
-    vnclip.wi v1, v8, 0          # or shift count for Q format
+    vnclip.wi v1, v8, 0
     vse16.v v1, (a3)
     slli    t1, t0, 1
     add     a1, a1, t1
@@ -156,7 +269,6 @@ stride16:
 1:  vsetvli t0, a0, e16, m1, tu, mu
     vlse16.v v1, (a1), a2
     vse16.v  v1, (a3)
-    # advance base by vl*stride is left to the caller for strip-mining
     slli    t1, t0, 1
     add     a3, a3, t1
     sub     a0, a0, t0

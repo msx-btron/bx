@@ -33,69 +33,206 @@ The load unit takes the base address from an integer register, checks that \text
 
 \section{Opcode map for SVM-8}
 
-Opcodes are listed by traditional class. Only the forms legal under ELEN\,=\,8 and LMUL\,=\,1 appear. Every instruction that is not listed is illegal and must trap.
+All encodings are 32-bit. The diagrams use the approved two-line rigid matrix with single-letter field codes. Only the forms legal under ELEN\,=\,8 and LMUL\,=\,1 are shown. Every other OP-V encoding traps.
 
-\subsection{Configuration}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vsetvl}   rd, rs1, rs2
-  \item \texttt{vsetvli}  rd, rs1, vtypei
-  \item \texttt{vsetivli} (optional; if omitted, the profile card says so)
-\end{itemize}
+\subsection{Configuration --- \texttt{vsetvli}}
 
-\subsection{Unit-stride load and store (EEW = 8)}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vle8.v}   vd, (rs1), vm
-  \item \texttt{vse8.v}   vs3, (rs1), vm
-\end{itemize}
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{11}{|c|}{Z} &
+\multicolumn{5}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
 
-\subsection{Integer arithmetic (vector-vector and vector-scalar)}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vadd.vv} / \texttt{vadd.vx}
-  \item \texttt{vsub.vv} / \texttt{vsub.vx}
-  \item \texttt{vrsub.vx}
-  \item \texttt{vand.vv} / \texttt{vand.vx}
-  \item \texttt{vor.vv}  / \texttt{vor.vx}
-  \item \texttt{vxor.vv} / \texttt{vxor.vx}
-  \item \texttt{vsll.vv} / \texttt{vsll.vx}
-  \item \texttt{vsrl.vv} / \texttt{vsrl.vx}
-  \item \texttt{vsra.vv} / \texttt{vsra.vx}
-\end{itemize}
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+Z & = zimm[10:0] (vtype immediate) \\
+S & = rs1 \\
+C & = 111 (OPCFG) \\
+D & = rd \\
+O & = 1010111 \\
+\end{tabular}
+\end{center}
 
-\subsection{Compare (produce mask in \texttt{v0})}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vmseq.vv} / \texttt{vmseq.vx}
-  \item \texttt{vmsne.vv} / \texttt{vmsne.vx}
-  \item \texttt{vmsltu.vv}/ \texttt{vmsltu.vx}
-  \item \texttt{vmslt.vv} / \texttt{vmslt.vx}
-  \item \texttt{vmsleu.vv}/ \texttt{vmsleu.vx}
-  \item \texttt{vmsle.vv} / \texttt{vmsle.vx}
-  \item \texttt{vmsgtu.vx}, \texttt{vmsgt.vx}
-\end{itemize}
+\texttt{vsetvl} replaces the zimm field with rs2. \texttt{vsetivli} (if implemented) uses a 5-bit immediate in place of rs1.
 
-\subsection{Saturating arithmetic}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vsadd.vv} / \texttt{vsadd.vx}
-  \item \texttt{vssub.vv} / \texttt{vssub.vx} (optional on the first image)
-\end{itemize}
+\subsection{Unit-stride load --- \texttt{vle8.v}}
+
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{3}{|c|}{N} &
+\multicolumn{1}{c|}{E} &
+\multicolumn{2}{c|}{P} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{L} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{W} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+N & = nf (normally 000) \\
+E & = mew \\
+P & = mop (00 = unit-stride) \\
+M & = vm \\
+L & = lumop (00000 = unit-stride) \\
+S & = rs1 (base) \\
+W & = width (000 = 8-bit) \\
+D & = vd \\
+O & = 0000111 \\
+\end{tabular}
+\end{center}
+
+Store form \texttt{vse8.v} uses major opcode 0100111 and vs3 in the D field.
+
+\subsection{Integer arithmetic (OPIVV / OPIVX)}
+
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{6}{|c|}{F} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{S} &
+\multicolumn{4}{c|}{T} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{T} &
+\multicolumn{3}{c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+F & = funct6 \\
+M & = vm \\
+S & = vs2 \\
+T & = vs1 (vv) or rs1 (vx) \\
+C & = funct3 (000 = OPIVV, 100 = OPIVX) \\
+D & = vd \\
+O & = 1010111 \\
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & funct6 & form \\
+\midrule
+\texttt{vadd}     & 000000 & vv / vx \\
+\texttt{vsub}     & 000010 & vv / vx \\
+\texttt{vrsub}    & 000011 & vx only \\
+\texttt{vand}     & 001001 & vv / vx \\
+\texttt{vor}      & 001010 & vv / vx \\
+\texttt{vxor}     & 001011 & vv / vx \\
+\texttt{vsll}     & 100101 & vv / vx \\
+\texttt{vsrl}     & 101000 & vv / vx \\
+\texttt{vsra}     & 101001 & vv / vx \\
+\texttt{vsadd}    & 100001 & vv / vx \\
+\texttt{vssub}    & 100011 & vv / vx (optional) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Compare (mask result)}
+
+Same layout as integer arithmetic. funct3 = 000 (OPIVV) or 100 (OPIVX). Result is written to the mask register \texttt{v0} when vd = 0, or to the named mask destination.
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & funct6 & form \\
+\midrule
+\texttt{vmseq}  & 011000 & vv / vx \\
+\texttt{vmsne}  & 011001 & vv / vx \\
+\texttt{vmsltu} & 011010 & vv / vx \\
+\texttt{vmslt}  & 011011 & vv / vx \\
+\texttt{vmsleu} & 011100 & vv / vx \\
+\texttt{vmsle}  & 011101 & vv / vx \\
+\texttt{vmsgtu} & 011110 & vx only \\
+\texttt{vmsgt}  & 011111 & vx only \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \subsection{Move and splat}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vmv.v.v}
-  \item \texttt{vmv.v.x}
-  \item \texttt{vmv.v.i}
-  \item \texttt{vmv.x.s} (scalar extract of element 0)
-  \item \texttt{vmv.s.x} (scalar insert into element 0)
-\end{itemize}
 
-\subsection{Mask logicals (required because compare is present)}
-\begin{itemize}[leftmargin=1.5em]
-  \item \texttt{vmand.mm}, \texttt{vmnand.mm}, \texttt{vmandn.mm}
-  \item \texttt{vmor.mm},  \texttt{vmnor.mm},  \texttt{vmorn.mm}
-  \item \texttt{vmxor.mm}, \texttt{vmxnor.mm}
-  \item \texttt{vcpop.m},  \texttt{vfirst.m}
-\end{itemize}
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & encoding notes \\
+\midrule
+\texttt{vmv.v.v} & funct6 = 010111, vs1 = vs2, OPIVV \\
+\texttt{vmv.v.x} & funct6 = 010111, OPIVX \\
+\texttt{vmv.v.i} & funct6 = 010111, OPIVI \\
+\texttt{vmv.x.s} & whole-register scalar extract \\
+\texttt{vmv.s.x} & whole-register scalar insert \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-No widening, no narrowing, no stride, no indexed, no reduction, no slide, no floating-point, and no custom geometry opcodes are legal.
+\subsection{Mask logicals}
+
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Instruction & funct6 \\
+\midrule
+\texttt{vmand}  & 011001 \\
+\texttt{vmnand} & 011101 \\
+\texttt{vmandn} & 011000 \\
+\texttt{vmor}   & 011010 \\
+\texttt{vmnor}  & 011110 \\
+\texttt{vmorn}  & 011100 \\
+\texttt{vmxor}  & 011011 \\
+\texttt{vmxnor} & 011111 \\
+\texttt{vcpop}  & 010000 (OPMVV) \\
+\texttt{vfirst} & 010001 (OPMVV) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+No widening, no narrowing, no stride, no indexed, no reduction, no slide, no floating-point, and no custom geometry opcodes are legal on SVM-8.
 
 \section{Assembler kernels that must run}
 
@@ -133,7 +270,6 @@ copy8:
 \subsection{mask8 --- selective fill under a generated mask}
 \begin{lstlisting}
 # a0 = n, a1 = fill, a2 = dst, a3 = threshold
-# bytes where *src < threshold become fill
 mask8:
     beqz    a0, 2f
 1:  vsetvli t0, a0, e8, m1, tu, mu
@@ -164,8 +300,6 @@ add8:
     bnez    a0, 1b
 2:  ret
 \end{lstlisting}
-
-The shape of every loop is the one Chapter~\ref{ch:tests} runs on all four machines: set VL, operate, store, advance, repeat.
 
 \section{What you elaborate}
 

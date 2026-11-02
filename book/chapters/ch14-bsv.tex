@@ -1,4 +1,264 @@
 \chapter{One Bluespec Description, Four Profiles}
+\label{ch:bsv}
+
+\section{Complete opcode contract}
+
+After the four machines the architectural rectangle is fixed. The table is the single entry point for “which opcodes exist on which core”.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Class / feature & SVM-8 & SVM-16 & Zve32f & Zve64d/V \\
+ & (BX-8) & (BX-16) & (BX-32) & (BX-64) \\
+\midrule
+\texttt{vsetvl}/\texttt{vsetvli} & yes & yes & yes & yes \\
+\texttt{vsetivli} & opt. & yes & yes & yes \\
+Unit-stride ld/st & EEW=8 & 8,16 & 8--32 & 8--64 \\
+Constant-stride & --- & yes & yes & yes \\
+Indexed ld/st & --- & --- & yes & yes \\
+Segment ld/st & no & no & no & no \\
+Integer arith (add/logic/shift) & yes & yes & yes & yes \\
+min/max & --- & yes & yes & yes \\
+Compare + mask logicals & yes & yes & yes & yes \\
+Saturating add/sub & vsadd only & yes & yes & yes \\
+Widening multiply / narrow & --- & yes & yes & yes \\
+Reduction / slide1 & --- & yes & yes & yes \\
+Gather / compress & --- & --- & yes & yes \\
+Moves / splat (\texttt{vmv.*}) & yes & yes & yes & yes \\
+FP32 vector + FMA & --- & --- & yes & yes \\
+FP64 vector + FMA & --- & --- & --- & yes \\
+Division / sqrt / estimates & no & no & opt. & per claim \\
+LMUL $>1$ & no & widen only & yes & yes \\
+Xsvm (custom-0) & no & opt. & opt. & off on V \\
+Tail policy & und. & und. & und. & und. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The bit-field diagrams that appear in Chapters~\ref{ch:bx8}--\ref{ch:bx64} are the concrete encodings for each class. The tables below list every mnemonic the corresponding profile must implement. The Bluespec package that follows elaborates exactly the cells marked “yes” (or “opt.” when the corresponding parameter is true) and turns every other cell into an illegal-instruction path.
+
+\section{Aggregated opcode tables (ISA)}
+
+Canonical bit layouts are shown once, width-aligned. Profile columns then list only the mnemonics (and the few constants that differ). Detailed per-machine diagrams remain in Chapters~\ref{ch:bx8}--\ref{ch:bx64}; this section is the compact academic summary.
+
+\subsection{Canonical layouts (32-bit, two equal-width half-words)}
+
+\paragraph{OP-V arithmetic / compare / move / FP}
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{6}{|c|}{F} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{S} &
+\multicolumn{4}{c|}{T} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{T} &
+\multicolumn{3}{c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+\vspace{1.0ex}
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+F = funct6 & M = vm \\
+S = vs2 & T = vs1 / rs1 / fs1 \\
+C = funct3 & D = vd \\
+O = 1010111 (OP-V) & \\
+\end{tabular}
+\end{center}
+
+\paragraph{Unit-stride / stride / indexed load (store substitutes opcode 0100111)}
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{3}{|c|}{N} &
+\multicolumn{1}{c|}{E} &
+\multicolumn{2}{c|}{P} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{L/S} &
+\multicolumn{4}{c|}{B} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{W} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+\vspace{1.0ex}
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+N = nf & E = mew \\
+P = mop (00 unit, 10 stride, 01/11 indexed) & M = vm \\
+L/S = lumop or vs2 (index) & B = rs1 (base) \\
+W = width (000=8, 101=16, 110=32, 111=64) & D = vd / vs3 \\
+O = 0000111 (load) & \\
+\end{tabular}
+\end{center}
+
+\paragraph{Configuration (\texttt{vsetvli})}
+\begin{center}
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{11}{|c|}{Z} &
+\multicolumn{5}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{C} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\end{center}
+\vspace{1.0ex}
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+Z = zimm[10:0] & S = rs1 \\
+C = 111 & D = rd \\
+O = 1010111 & \\
+\end{tabular}
+\end{center}
+
+\subsection{Mnemonic coverage by profile}
+
+\begin{center}\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Group & SVM-8 & SVM-16 & Zve32f & Zve64d/V \\
+\midrule
+Configuration & \texttt{vsetvl/i} & + \texttt{vsetivli} & same & same \\
+Unit-stride & e8 & e8,e16 & e8--e32 & e8--e64 \\
+Stride & --- & e8,e16 & e8--e32 & e8--e64 \\
+Indexed & --- & --- & e8--e32 & e8--e64 \\
+Integer arith & add/sub/logic/shift & +min/max & same & +SEW64 \\
+Saturating & vsadd & full set & full & full \\
+Widening / narrow & --- & vwmul, vnclip\ldots & same & same \\
+Compare + mask & full & full & full & full \\
+Reduction / slide1 & --- & yes & yes & yes \\
+Gather / compress & --- & --- & yes & yes \\
+Moves / splat & \texttt{vmv.*} & same & +FP moves & same \\
+FP32 + FMA & --- & --- & full & full \\
+FP64 + FMA & --- & --- & --- & full \\
+Xsvm & no & opt. & opt. & off on V \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Explicit summary --- SVM-8 (BX-8)}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Required & Notes \\
+\midrule
+\texttt{vsetvl}, \texttt{vsetvli} & \texttt{vsetivli} optional \\
+\texttt{vle8.v}, \texttt{vse8.v} & unit-stride only \\
+\texttt{vadd/sub.vv/vx}, \texttt{vrsub.vx} & \\
+\texttt{vand/vor/vxor.vv/vx} & \\
+\texttt{vsll/vsrl/vsra.vv/vx} & \\
+\texttt{vsadd.vv/vx} & \texttt{vssub} optional \\
+\texttt{vmseq/ne/ltu/lt/leu/le.vv/vx}, \texttt{vmsgtu/gt.vx} & \\
+mask logicals, \texttt{vcpop.m}, \texttt{vfirst.m} & \\
+\texttt{vmv.v.v/x/i}, \texttt{vmv.x.s}, \texttt{vmv.s.x} & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Explicit summary --- SVM-16 (BX-16)}
+
+Everything in SVM-8, plus:
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Required & Notes \\
+\midrule
+\texttt{vsetivli} & now required \\
+\texttt{vle16.v}, \texttt{vse16.v} & \\
+\texttt{vlse8/16.v}, \texttt{vsse8/16.v} & constant-stride \\
+\texttt{vminu/min/maxu/max.vv/vx} & \\
+\texttt{vsaddu/vsadd/vssubu/vssub} & full saturating set \\
+\texttt{vwmul/u/su.vv/vx} & widening \\
+\texttt{vnsrl/vnsra}, \texttt{vnclipu/vnclip} & narrowing \\
+\texttt{vredsum.vs} & reduction \\
+\texttt{vslide1up.vx}, \texttt{vslide1down.vx} & \\
+Xsvm matrix / cross-product & optional (custom-0) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Explicit summary --- Zve32f (BX-32)}
+
+Everything in SVM-16, plus:
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Required & Notes \\
+\midrule
+\texttt{vle32.v}, \texttt{vse32.v} & \\
+\texttt{vluxei*}, \texttt{vloxei*}, indexed stores & \\
+\texttt{vrgather.vv/vx}, \texttt{vcompress.vm} & \\
+\texttt{vfadd/sub/mul.vv/vf} & FP32 \\
+\texttt{vfmacc/fnmacc/fmsac/fnmsac} & FMA family \\
+\texttt{vfmadd/fnmadd/fmsub/fnmsub} & \\
+\texttt{vfmin/max}, \texttt{vfsqrt}, \texttt{vfsgnj*} & \\
+\texttt{vfcvt.*}, \texttt{vmfeq/ne/lt/le/gt/ge} & \\
+\texttt{vfmv.v.f}, \texttt{vfmv.f.s}, \texttt{vfmv.s.f} & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Explicit summary --- Zve64d / V (BX-64)}
+
+Everything in Zve32f, plus SEW\,=\,64 and FP64. If the image claims full V, the entire V instruction set is required and the V bit is set in \texttt{misa}; otherwise the claim is Zve64d only. Xsvm must be off on any V-claiming image.
+
+\subsection{Key constants (funct6 / width / mop)}
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Operation & Constant & Value \\
+\midrule
+\texttt{vadd} & funct6 & 000000 \\
+\texttt{vsub} & funct6 & 000010 \\
+\texttt{vand/vor/vxor} & funct6 & 001001/10/11 \\
+\texttt{vsll/vsrl/vsra} & funct6 & 100101/101000/101001 \\
+\texttt{vsadd} & funct6 & 100001 \\
+\texttt{vwmul} & funct6 & 111011 \\
+\texttt{vfmacc} & funct6 & 101100 \\
+width 8/16/32/64 & W field & 000/101/110/111 \\
+mop unit/stride/idx & P field & 00/10/01 or 11 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Any mnemonic required by a wider profile but absent from a narrower one is an illegal-instruction trap on the narrower core. The bit layouts above are identical on every machine; only the legal SEW, the legal mop values, and the legal funct6 set change.
 
 \section{Parameters}
 
