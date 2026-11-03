@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BX Series — Scalable Vector Machines 8→64 | bx.btron.pro</title>
     <meta name="description"
-        content="The BTRON BX Series: a coherent family of clean FPGA RTL machines with scalable VEX vector extensions from 8-bit to 64-bit. OpenGL ES transform pipelines, RISC-V Vector mapping, and Bluespec SystemVerilog implementations for professional architectural study.">
+        content="The BTRON BX Series: a coherent family of clean FPGA RTL machines with scalable SVM vector extensions from 8-bit to 64-bit. OpenGL ES transform pipelines, RISC-V Vector mapping, and Bluespec SystemVerilog implementations for professional architectural study.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;600&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet">
@@ -669,7 +669,7 @@
             </button>
             <ul class="nav-links">
                 <li><a href="#series">Series</a></li>
-                <li><a href="#vex">VEX</a></li>
+                <li><a href="#SVM">SVM</a></li>
                 <li><a href="#machines">Machines</a></li>
                 <li><a href="#opengl">OpenGL ES</a></li>
                 <li><a href="#notes">Notes</a></li>
@@ -686,13 +686,13 @@
             <h1 class="jp-title">Scalable Vector Machines.<br>8-bit to 64-bit.</h1>
             <div class="hero-rule"></div>
             <p class="hero-lede">
-                The BTRON BX series is a coherent family of clean, synthesizable FPGA RTL machines that systematically revive the peripheral ecosystems and computational spirit of classic 8-bit through 64-bit platforms. From BX-16 upward the series adopts a deliberately scalable vector architecture—VEX—whose element widths, vector lengths and floating-point capabilities grow in lock-step with the host integer ISA, remaining source-compatible across the entire family and mapped onto the RISC-V Vector Extension hierarchy.
+                The BTRON BX series is a coherent family of clean, synthesizable FPGA RTL machines that systematically revive the peripheral ecosystems and computational spirit of classic 8-bit through 64-bit platforms. From BX-16 upward the series adopts a deliberately scalable vector architecture—SVM—whose element widths, vector lengths and floating-point capabilities grow in lock-step with the host integer ISA, remaining source-compatible across the entire family and mapped onto the RISC-V Vector Extension hierarchy.
             </p>
             <p class="hero-lede-en">
                 Four cores—bx-8, bx-16, bx-32, bx-64—share one design culture, one peripheral-library discipline and one progressive vector programming model. All are expressed in Bluespec SystemVerilog, target contemporary FPGAs, and are offered as an independent systems-architecture study.
             </p>
             <div class="hero-marks">
-                <span>VEX · RVV / Zve* · SEW 8→64</span>
+                <span>SVM · RVV / Zve* · SEW 8→64</span>
                 <span>OpenGL ES Vertex Pipeline</span>
                 <span>Bluespec SystemVerilog · FPGA-first</span>
             </div>
@@ -741,7 +741,7 @@
                                         <tr>
                                             <td><b>bx-16</b></td>
                                             <td>16-bit</td>
-                                            <td>native VEX · SEW 8/16 · Q16.16 · 4-wide</td>
+                                            <td>native SVM · SEW 8/16 · Q16.16 · 4-wide</td>
                                         </tr>
                                         <tr>
                                             <td><b>bx-32</b></td>
@@ -772,7 +772,7 @@
                             <li><strong>Clean RTL</strong><span>Bluespec SystemVerilog throughout</span></li>
                             <li><strong>Selectable peripherals</strong><span>Parameterised authenticity + experiment</span></li>
                             <li><strong>Open / clean ISAs</strong><span>R1600 · RV32 · RV64</span></li>
-                            <li><strong>Scalable VEX</strong><span>Identical model from 16-bit upward</span></li>
+                            <li><strong>Scalable SVM</strong><span>Identical model from 16-bit upward</span></li>
                             <li><strong>FPGA-first</strong><span>Synthesizable on contemporary devices</span></li>
                         </ul>
                         <a class="entry" href="#notes">Technical notes &amp; PDFs →</a>
@@ -781,18 +781,18 @@
             </div>
         </section>
 
-        <!-- ═══ 01 / VEX ═══ -->
-        <section id="vex">
+        <!-- ═══ 01 / SVM ═══ -->
+        <section id="SVM">
             <div class="wrap">
                 <div class="band-head reveal">
-                    <span class="band-index">01 / VEX</span>
-                    <h2 class="jp-title">The VEX Vector Extension</h2>
+                    <span class="band-index">01 / SVM</span>
+                    <h2 class="jp-title">The SVM Vector Extension</h2>
                     <p class="band-eyebrow">Authoritative Definition · Length-Agnostic · Source-Compatible Across Family</p>
                 </div>
 
                 <div class="band-intro reveal">
                     <p>
-                        VEX is the name given to the scalable vector architecture of the BX series. It is first realised concretely on the 16-bit R1600 core and is thereafter mapped onto the ratified RISC-V Vector Extension (RVV 1.0) and its embedded subsets. Software written against the BX-16 VEX model remains source-compatible; only the available element widths and the concrete VLMAX change.
+                        SVM is the name given to the scalable vector architecture of the BX series. It is first realised concretely on the 16-bit R1600 core and is thereafter mapped onto the ratified RISC-V Vector Extension (RVV 1.0) and its embedded subsets. Software written against the BX-16 SVM model remains source-compatible; only the available element widths and the concrete VLMAX change.
                     </p>
                     <p class="en">
                         Core properties common to every width: orthogonal 16-register vector file, configurable SEW drawn from {8, 16, 32, 64}, length-agnostic kernels driven by a vsetvl-style configuration instruction, saturating integer arithmetic, widening multiplies, reductions, and—from BX-32 upward—single- and double-precision floating-point.
@@ -808,7 +808,7 @@
                                         <tr>
                                             <th>BX Machine</th>
                                             <th>Host</th>
-                                            <th>VEX / RVV Subset</th>
+                                            <th>SVM / RVV Subset</th>
                                             <th>Key Capabilities</th>
                                         </tr>
                                     </thead>
@@ -816,7 +816,7 @@
                                         <tr>
                                             <td><b>BX-16</b></td>
                                             <td>R1600</td>
-                                            <td>VEX (native)</td>
+                                            <td>SVM (native)</td>
                                             <td>SEW 8/16 · VLEN 32–128 · integer + saturating</td>
                                         </tr>
                                         <tr>
@@ -909,7 +909,7 @@
 
                 <div class="band-intro reveal">
                     <p>
-                        Each machine occupies a precise place in the graduated programme. BX-8 validates the common Bluespec infrastructure and peripheral-library discipline. BX-16 introduces the authoritative VEX definition and the first OpenGL ES-style transform path. BX-32 and BX-64 scale the same model onto 32-bit and 64-bit RISC-V hosts with progressively richer floating-point and vector length support.
+                        Each machine occupies a precise place in the graduated programme. BX-8 validates the common Bluespec infrastructure and peripheral-library discipline. BX-16 introduces the authoritative SVM definition and the first OpenGL ES-style transform path. BX-32 and BX-64 scale the same model onto 32-bit and 64-bit RISC-V hosts with progressively richer floating-point and vector length support.
                     </p>
                     <p class="en">
                         All four share clean RTL, selectable peripheral libraries, open or cleanly designed ISAs, the scalable vector model (from BX-16), FPGA-first implementation, and a professional stance that honours the original engineers.
@@ -927,7 +927,7 @@
                     <div class="card">
                         <span class="card-num">02</span>
                         <h4>BX-16</h4>
-                        <p class="role">16-bit + Native VEX</p>
+                        <p class="role">16-bit + Native SVM</p>
                         <p>R1600 core with first scalable vector unit. SEW 8/16, modest VLEN, integer + saturating arithmetic. OpenGL ES path begins here. Dual-processor hybrid or tightly-coupled coprocessor organisations.</p>
                         <a class="entry" href="#notes">btron-bx16 technical note →</a>
                     </div>
@@ -963,7 +963,7 @@
                         The primary non-legacy workload considered across the series is software 3D rendering of the complexity that tinyGL and related fixed-function OpenGL ES 1.x subsets can express: low-to-mid polygon counts, simple lighting, perspective-correct or affine texturing, and a software Z-buffer. The architecture must make the transform-and-lighting stage and the inner rasterisation loops substantially faster than a pure scalar host, without requiring a full modern GPU.
                     </p>
                     <p class="en">
-                        On BX-16 the VEX unit supplies 4-wide Q16.16 matrix–vector products and cross products. On BX-32 the same length-agnostic loops gain FP32 and wider VLEN. On BX-64 they gain FP64 and the full RVV operation set. A single high-level 3D library can therefore target every machine from the 16-bit entry point upward.
+                        On BX-16 the SVM unit supplies 4-wide Q16.16 matrix–vector products and cross products. On BX-32 the same length-agnostic loops gain FP32 and wider VLEN. On BX-64 they gain FP64 and the full RVV operation set. A single high-level 3D library can therefore target every machine from the 16-bit entry point upward.
                     </p>
                 </div>
 
@@ -975,7 +975,7 @@
                                     <thead>
                                         <tr>
                                             <th>Stage</th>
-                                            <th>BX-16 VEX</th>
+                                            <th>BX-16 SVM</th>
                                             <th>BX-32 / BX-64</th>
                                         </tr>
                                     </thead>
@@ -1048,36 +1048,57 @@
                     <a class="pdf-link" href="doc/btron-bx-series.pdf" target="_blank">
                         <span class="icon">PDF</span>
                         <span class="meta">
-                            <b>BX Series Umbrella</b>
-                            <span>btron-bx-series · Nov 2026</span>
+                            <b>BX Series</b>
+                            <span>bx-series · Nov 2026</span>
                         </span>
                     </a>
                     <a class="pdf-link" href="doc/btron-bx8.pdf" target="_blank">
                         <span class="icon">PDF</span>
                         <span class="meta">
-                            <b>BX-8 Technical Note</b>
+                            <b>BX-8 MSX</b>
                             <span>MSX / R800 · Bluespec</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="https://msx.btron.pro/emulators/fpgaMSX/index.html" target="_blank">
+                        <span class="icon">HTML</span>
+                        <span class="meta">
+                            <b>BX-8 fpgaMSX</b>
+                            <span>Bluespec · Verilog</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="https://msx.btron.pro/emulators/fpgaMSX/index.html" target="_blank">
+                        <span class="icon">HTML</span>
+                        <span class="meta">
+                            <b>BX-8 tronMSX</b>
+                            <span>C99 · Reference</span>
                         </span>
                     </a>
                     <a class="pdf-link" href="doc/btron-bx16.pdf" target="_blank">
                         <span class="icon">PDF</span>
                         <span class="meta">
-                            <b>BX-16 / VEX Definition</b>
-                            <span>R1600 · Authoritative VEX</span>
+                            <b>BX-16 M68K / SVM</b>
+                            <span>R1600 · SVM</span>
                         </span>
                     </a>
                     <a class="pdf-link" href="doc/btron-bx32.pdf" target="_blank">
                         <span class="icon">PDF</span>
                         <span class="meta">
-                            <b>BX-32 Technical Note</b>
-                            <span>Saturn / Dreamcast · Zve*</span>
+                            <b>BX-32 RVV</b>
+                            <span>Saturn / Dreamcast</span>
                         </span>
                     </a>
                     <a class="pdf-link" href="doc/btron-bx64.pdf" target="_blank">
                         <span class="icon">PDF</span>
                         <span class="meta">
-                            <b>BX-64 Technical Note</b>
-                            <span>EE / RCP · full RVV</span>
+                            <b>BX-64 RVV</b>
+                            <span>EE / RCP · Full RVV</span>
+                        </span>
+                    </a>
+                    <a class="pdf-link" href="book/main.pdf" target="_blank">
+                        <span class="icon">PDF</span>
+                        <span class="meta">
+                            <b>SVM. 8-bit to 64-bit.</b>
+                            <span>RVV · Book</span>
                         </span>
                     </a>
                 </div>
@@ -1087,9 +1108,9 @@
                         <figure class="plate">
                             <div class="field" style="padding: 1.2rem; background: var(--plate);">
                                 <ul class="spec" style="border-top: none; margin: 0;">
-                                    <li><strong>Umbrella</strong><span>btron-bx-series.tex</span></li>
+                                    <li><strong>BX Series</strong><span>btron-bx-series.tex</span></li>
                                     <li><strong>BX-8</strong><span>btron-bx8.tex · fpgaMSX companion</span></li>
-                                    <li><strong>BX-16</strong><span>btron-bx16.tex · VEX authoritative</span></li>
+                                    <li><strong>BX-16</strong><span>btron-bx16.tex · SVM authoritative</span></li>
                                     <li><strong>BX-32</strong><span>btron-bx32.tex · Zve32f/Zve64f</span></li>
                                     <li><strong>BX-64</strong><span>btron-bx64.tex · V / Zve64d</span></li>
                                     <li><strong>Implementation</strong><span>Bluespec SystemVerilog · FPGA</span></li>
@@ -1106,7 +1127,7 @@
                         <p class="role">Academic Framing</p>
                         <h3 class="jp-title">Foundation for Further Work</h3>
                         <p>
-                            The notes are written first for the engineers who designed, verified and programmed the original platforms, and for those who continue to study media-processor organisation. They supply a precise, citable record of the VEX model and its scaling path, suitable for laboratory use, teaching and formal comparison with contemporaneous RISC-V vector practice.
+                            The notes are written first for the engineers who designed, verified and programmed the original platforms, and for those who continue to study media-processor organisation. They supply a precise, citable record of the SVM model and its scaling path, suitable for laboratory use, teaching and formal comparison with contemporaneous RISC-V vector practice.
                         </p>
                         <div class="closing-entries">
                             <a class="entry" href="https://msx.btron.pro/emulators/fpgaMSX" target="_blank">fpgaMSX / BX-8 →</a>
@@ -1128,7 +1149,7 @@
                 </div>
                 <div class="band-intro reveal">
                     <p>
-                        The BTRON BX series is an invitation to treat classic media-processor architectures as living subjects of study. By re-expressing their peripheral ecosystems in clean Bluespec SystemVerilog, and by imposing a single scalable vector architecture (VEX) from BX-16 upward, the series offers a practical path from 8-bit MSX-class machines to 64-bit vector architectures whose software model remains coherent across the entire family.
+                        The BTRON BX series is an invitation to treat classic media-processor architectures as living subjects of study. By re-expressing their peripheral ecosystems in clean Bluespec SystemVerilog, and by imposing a single scalable vector architecture (SVM) from BX-16 upward, the series offers a practical path from 8-bit MSX-class machines to 64-bit vector architectures whose software model remains coherent across the entire family.
                     </p>
                     <p class="en">
                         The four cores—bx-8, bx-16, bx-32 and bx-64—form one graduated programme united by methodology, by a progressive vector capability, and by respect for the original engineering.
@@ -1146,7 +1167,7 @@
                 <h4>BX Series</h4>
                 <ul>
                     <li><a href="#series">Series Philosophy</a></li>
-                    <li><a href="#vex">VEX Vector Extension</a></li>
+                    <li><a href="#SVM">SVM Vector Extension</a></li>
                     <li><a href="#machines">Four Machines</a></li>
                     <li><a href="#opengl">OpenGL ES Path</a></li>
                     <li><a href="#notes">Technical Notes</a></li>
@@ -1155,9 +1176,9 @@
             <div>
                 <h4>Companion Notes</h4>
                 <ul>
-                    <li><a href="doc/btron-bx-series.pdf" target="_blank">Umbrella Note</a></li>
+                    <li><a href="doc/btron-bx-series.pdf" target="_blank">BX Series</a></li>
                     <li><a href="doc/btron-bx8.pdf" target="_blank">BX-8 (MSX / R800)</a></li>
-                    <li><a href="doc/btron-bx16.pdf" target="_blank">BX-16 / VEX Definition</a></li>
+                    <li><a href="doc/btron-bx16.pdf" target="_blank">BX-16 / SVM Definition</a></li>
                     <li><a href="doc/btron-bx32.pdf" target="_blank">BX-32 (Saturn / DC)</a></li>
                     <li><a href="doc/btron-bx64.pdf" target="_blank">BX-64 (EE / RCP)</a></li>
                 </ul>
