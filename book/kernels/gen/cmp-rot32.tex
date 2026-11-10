@@ -1,0 +1,60 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: rot32}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = x, a2 = y, a3 = (c, s)}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{0006A007} & \texttt{rot32: flw ft0, 0(a3)} \\
+RVV & \texttt{0004} & \texttt{0046A087} & \texttt{flw ft1, 4(a3)} \\
+RVV & \texttt{0008} & \texttt{04050263} & \texttt{beqz a0, end} \\
+RVV & \texttt{000C} & \texttt{002572D7} & \texttt{loop: vsetvli t0, a0, e32, m1, tu, mu} \\
+RVV & \texttt{0010} & \texttt{0205E087} & \texttt{vle32.v v1, (a1)} \\
+RVV & \texttt{0014} & \texttt{02066107} & \texttt{vle32.v v2, (a2)} \\
+RVV & \texttt{0018} & \texttt{921051D7} & \texttt{vfmul.vf v3, v1, ft0} \\
+RVV & \texttt{001C} & \texttt{9220D257} & \texttt{vfmul.vf v4, v2, ft1} \\
+RVV & \texttt{0020} & \texttt{023212D7} & \texttt{vfadd.vv v5, v3, v4} \\
+RVV & \texttt{0024} & \texttt{922051D7} & \texttt{vfmul.vf v3, v2, ft0} \\
+RVV & \texttt{0028} & \texttt{9210D257} & \texttt{vfmul.vf v4, v1, ft1} \\
+RVV & \texttt{002C} & \texttt{0A321357} & \texttt{vfsub.vv v6, v3, v4} \\
+RVV & \texttt{0030} & \texttt{0205E2A7} & \texttt{vse32.v v5, (a1)} \\
+RVV & \texttt{0034} & \texttt{02066327} & \texttt{vse32.v v6, (a2)} \\
+RVV & \texttt{0038} & \texttt{00229313} & \texttt{slli t1, t0, 2} \\
+RVV & \texttt{003C} & \texttt{006585B3} & \texttt{add a1, a1, t1} \\
+RVV & \texttt{0040} & \texttt{00660633} & \texttt{add a2, a2, t1} \\
+RVV & \texttt{0044} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{0048} & \texttt{FC0512E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{004C} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{C4E2791811} & \texttt{rot32: vbroadcastss xmm2, dword ptr [rcx]} \\
+Intel & \texttt{0005} & \texttt{C4E279185904} & \texttt{vbroadcastss xmm3, dword ptr [rcx+4]} \\
+Intel & \texttt{000B} & \texttt{C5F81006} & \texttt{vmovups xmm0, [rsi]} \\
+Intel & \texttt{000F} & \texttt{C5F8100F} & \texttt{vmovups xmm1, [rdi]} \\
+Intel & \texttt{0013} & \texttt{C5F859E2} & \texttt{vmulps xmm4, xmm0, xmm2} \\
+Intel & \texttt{0017} & \texttt{C4E271B8E3} & \texttt{vfmadd231ps xmm4, xmm1, xmm3} \\
+Intel & \texttt{001C} & \texttt{C5F059EA} & \texttt{vmulps xmm5, xmm1, xmm2} \\
+Intel & \texttt{0020} & \texttt{C4E279BCEB} & \texttt{vfnmadd231ps xmm5, xmm0, xmm3} \\
+Intel & \texttt{0025} & \texttt{C5F81126} & \texttt{vmovups [rsi], xmm4} \\
+Intel & \texttt{0029} & \texttt{C5F8112F} & \texttt{vmovups [rdi], xmm5} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4D40C862} & \texttt{rot32: ld1r \{v2.4s\}, [x3]} \\
+ARM & \texttt{0004} & \texttt{91001063} & \texttt{add x3, x3, \#4} \\
+ARM & \texttt{0008} & \texttt{4D40C863} & \texttt{ld1r \{v3.4s\}, [x3]} \\
+ARM & \texttt{000C} & \texttt{4C407820} & \texttt{ld1 \{v0.4s\}, [x1]} \\
+ARM & \texttt{0010} & \texttt{4C407841} & \texttt{ld1 \{v1.4s\}, [x2]} \\
+ARM & \texttt{0014} & \texttt{6E22DC04} & \texttt{fmul v4.4s, v0.4s, v2.4s} \\
+ARM & \texttt{0018} & \texttt{4E23CC24} & \texttt{fmla v4.4s, v1.4s, v3.4s} \\
+ARM & \texttt{001C} & \texttt{6E22DC25} & \texttt{fmul v5.4s, v1.4s, v2.4s} \\
+ARM & \texttt{0020} & \texttt{4EA3CC05} & \texttt{fmls v5.4s, v0.4s, v3.4s} \\
+ARM & \texttt{0024} & \texttt{4C007824} & \texttt{st1 \{v4.4s\}, [x1]} \\
+ARM & \texttt{0028} & \texttt{4C007845} & \texttt{st1 \{v5.4s\}, [x2]} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx32/rot32.sew32.lmul1.tu.mu.vlen128.xlen32.le.bin}\par

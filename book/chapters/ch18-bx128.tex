@@ -1,0 +1,128 @@
+\chapter{BX-128: A Pinned 128-bit Register}
+\label{ch:bx128}
+
+\section{The board-level picture}
+
+BX-128 is the BX-64 board with the vector file pinned at 128 bits. It does not replace a console. Instruction fetch has its own 32-bit port. Data memory is a 64-bit port. The hart is RV64, Chapter~\ref{ch:rv64}. The vector file is thirty-two registers of 128 bits, 512 bytes. Chapter~\ref{ch:rv128} is the integer base with XLEN 128. This board keeps the RV64 hart and pins the vector register.
+
+A vector load at SEW 64 moves two elements from one register. A vector load at SEW 32 moves four. Lane counts, the two register files, and this pin beside an RV128 hart are Chapter~\ref{ch:fpga}.
+
+\begin{spec}
+XLEN = 64. ELEN = 64. VLEN = 128.\\
+Thirty-two vector registers. VRF = 512 bytes.\\
+Instruction port 32 bits. Data port 64 bits.
+\end{spec}
+
+\section{The architecture}
+
+\begin{spec}
+Legal SEW = 8, 16, 32, and 64.\\
+VLMAX = 16, 8, 4, and 2 at those widths.\\
+FP32 and FP64, including fused multiply-add.\\
+If the claim is V: every instruction V requires, and the V bit set in \texttt{misa}.\\
+If the claim is Zve64d: do not set the V bit.\\
+SEW 128 traps.
+\end{spec}
+
+\texttt{vsetvli} with \texttt{rs1} equal to \texttt{x0} writes VLMAX into \texttt{rd}. VLEN is not an instruction field. The acceptance filename records 128, which is the length this image was accepted on.
+
+\section{Widening}
+
+Widening multiply and narrowing shift are the BX-64 operations. They are legal here because ELEN is 64. A 128-bit register holds more elements of that SEW than an eight-bit machine does, and the same number the BX-64 floor holds. In the matrix of Section~\ref{sec:blas} the extra elements are a taller column slice. LMUL groups registers. A group is still a vector.
+
+\section{Opcode map for BX-128}
+
+The parcels are the BX-64 parcels. The diagrams below are the two fields this chapter uses. Integer, FP32, FP64, fused multiply-add, mask, and indexed forms are the map in Chapter~\ref{ch:bx64}.
+
+\subsection{Configuration}
+
+Identical to Chapter~\ref{ch:bx8}. \texttt{zimm} selects SEW and LMUL. Bit 31 stays clear. \texttt{vsetvli t0, zero, e32, m1, tu, mu} is the word \texttt{002072D7}. On this machine \texttt{t0} receives 4.
+
+\subsection{Unit-stride load at SEW=64 --- \texttt{vle64.v}}
+
+\begin{center}
+\begingroup
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{3}{|c|}{N} &
+\multicolumn{1}{c|}{E} &
+\multicolumn{2}{c|}{P} &
+\multicolumn{1}{c|}{M} &
+\multicolumn{5}{c|}{L} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{3}{|c|}{W} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\endgroup
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+N & = nf \\
+E & = mew \\
+P & = mop (00 = unit-stride) \\
+M & = vm \\
+L & = lumop (00000) \\
+S & = rs1 (base) \\
+W & = width (111 = 64-bit) \\
+D & = vd \\
+O & = 0000111 \\
+\end{tabular}
+\end{center}
+
+EEW 8, 16, and 32 keep the width codes already printed: 000, 101, and 110.
+
+\section{RV64 and COP3 fetch}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Path & Escape & Address \\
+\midrule
+RV64 & native OP-V & full 64-bit GPR \\
+COP3 host & \texttt{4C000000} & low 64 bits of the GPR \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The RV64 parcel is little-endian. The COP3 escape is the BX-32 escape, and the parcel endian is the host's. COP2 stays the host's own unit. There is no harness directory for this machine.
+
+\section{Assembler kernels that must run}
+
+Every BX-64 acceptance image is required here. The tables stay in Chapter~\ref{ch:bx64}. This chapter prints the tiles whose immediate stride is VLMAX at SEW 32. Offsets 16, 32, and 48 are that stride. \texttt{gemm64} is two doubles.
+
+\begin{table}[htbp]
+\centering
+\caption{Kernel analogues on this machine.}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Kernel & RVV & Intel & ARM \\
+\midrule
+gemm32 & \texttt{vfmacc.vf} & \texttt{vbroadcastss} & \texttt{ld1r} \\
+gemm64 & \texttt{vfmacc.vf} & \texttt{vmovddup} & \texttt{ld1r} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\texttt{gemm32} is the \texttt{sgemm} tile of Chapter~\ref{ch:bx32}: OpenBLAS, BLIS, Eigen, and a convolution after the patches are packed. \texttt{gemm64} is \texttt{dgemm} at two doubles. The rest of that catalogue, including \texttt{wmul32}, \texttt{bfly32}, and \texttt{cmul32}, is required here at the same element width.
+
+\input{kernels/gen/cmp-gemm32}
+\input{kernels/gen/cmp-gemm64}
+
+\section{Harts}
+
+One RV64 hart is the default. An optional second hart is the BX-64 organisation: one hart for the short work, one for a longer kernel, a mapped local memory, and a DMA engine programmed by stores. Both harts see VLEN 128. The DMA does not fetch OP-V. Xsvm stays off on a V-claiming image.

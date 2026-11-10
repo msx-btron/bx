@@ -13,12 +13,20 @@
 \usepackage{listings}
 \usepackage[hidelinks]{hyperref}
 
+% \input paths are tried as written, then under book/ so the same
+% main.tex builds from book/ and from the repository root.
+\makeatletter
+\def\input@path{{./}{book/}}
+\makeatother
+
 \setlrmarginsandblock{2.6cm}{2.6cm}{*}
 \setulmarginsandblock{2.6cm}{2.8cm}{*}
 \checkandfixthelayout
 
 \setsecnumdepth{subsection}
 \settocdepth{subsection}
+\setpnumwidth{2em}
+\setrmarg{3.2em}
 \chapterstyle{ger}
 \pagestyle{ruled}
 
@@ -26,6 +34,7 @@
   basicstyle=\ttfamily\small,
   breaklines=true,
   columns=fullflexible,
+  keepspaces=true,
   frame=single,
   backgroundcolor=\color{black!4},
   literate={~}{{\textasciitilde}}1
@@ -33,8 +42,8 @@
 
 \newenvironment{spec}{\begin{quote}\small}{\end{quote}}
 
-\title{Scalable RVV Design and Architecture\\from 8-bit to 64-bit}
-\author{BTRON BX Series\\Independent Systems Architecture Study}
+\title{Scalable Vector Machines.\\ RVV Design and Architecture\\from an 8-bit bus to a 512-bit register.}
+\author{BTRON BX\\Cryptographic Telesystems, LLC.}
 \date{November 2026}
 
 \begin{document}
@@ -46,16 +55,22 @@
 \include{front/notation}
 
 \mainmatter
+\include{chapters/ch03-introduction}
 \include{chapters/ch04-machines}
 \include{chapters/ch05-ladder}
 \include{chapters/ch06-profiles}
 \include{chapters/ch07-state}
 \include{chapters/ch08-instructions}
 \include{chapters/ch09-fpga}
+\include{chapters/ch21-rv32}
 \include{chapters/ch10-bx8}
 \include{chapters/ch11-bx16}
 \include{chapters/ch12-bx32}
+\include{chapters/ch22-rv64}
 \include{chapters/ch13-bx64}
+\include{chapters/ch18-bx128}
+\include{chapters/ch19-bx512}
+\include{chapters/ch20-rv128}
 \include{chapters/ch14-bsv}
 \include{chapters/ch15-bringup}
 \include{chapters/ch16-tests}

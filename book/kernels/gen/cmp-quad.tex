@@ -1,0 +1,34 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: quad}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = src, a1 = dst. One quadword, then both pointers add 16.}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RV128 & \texttt{0000} & \texttt{0005228F} & \texttt{quad: lq t0, 0(a0)} \\
+RV128 & \texttt{0004} & \texttt{0055C023} & \texttt{sq t0, 0(a1)} \\
+RV128 & \texttt{0008} & \texttt{01050513} & \texttt{addi a0, a0, 16} \\
+RV128 & \texttt{000C} & \texttt{01058593} & \texttt{addi a1, a1, 16} \\
+RV128 & \texttt{0010} & \texttt{00008067} & \texttt{ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{F30F6F06} & \texttt{quad: movdqu xmm0, [rsi]} \\
+Intel & \texttt{0004} & \texttt{F30F7F07} & \texttt{movdqu [rdi], xmm0} \\
+Intel & \texttt{0008} & \texttt{4883C610} & \texttt{add rsi, 16} \\
+Intel & \texttt{000C} & \texttt{4883C710} & \texttt{add rdi, 16} \\
+Intel & \texttt{0010} & \texttt{C3} & \texttt{ret} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4C407000} & \texttt{quad: ld1 \{v0.16b\}, [x0]} \\
+ARM & \texttt{0004} & \texttt{4C007020} & \texttt{st1 \{v0.16b\}, [x1]} \\
+ARM & \texttt{0008} & \texttt{91004000} & \texttt{add x0, x0, \#16} \\
+ARM & \texttt{000C} & \texttt{91004021} & \texttt{add x1, x1, \#16} \\
+ARM & \texttt{0010} & \texttt{D65F03C0} & \texttt{ret} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/rv128/quad.sew64.lmul1.tu.mu.vlen0.xlen128.le.bin}\par

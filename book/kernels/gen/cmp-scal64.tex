@@ -1,0 +1,44 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: scal64}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = x, a2 = alpha. x *= alpha}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{00063007} & \texttt{scal64: fld ft0, 0(a2)} \\
+RVV & \texttt{0004} & \texttt{02050263} & \texttt{beqz a0, end} \\
+RVV & \texttt{0008} & \texttt{003572D7} & \texttt{loop: vsetvli t0, a0, e64, m1, tu, mu} \\
+RVV & \texttt{000C} & \texttt{0205F087} & \texttt{vle64.v v1, (a1)} \\
+RVV & \texttt{0010} & \texttt{921050D7} & \texttt{vfmul.vf v1, v1, ft0} \\
+RVV & \texttt{0014} & \texttt{0205F0A7} & \texttt{vse64.v v1, (a1)} \\
+RVV & \texttt{0018} & \texttt{00329313} & \texttt{slli t1, t0, 3} \\
+RVV & \texttt{001C} & \texttt{006585B3} & \texttt{add a1, a1, t1} \\
+RVV & \texttt{0020} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{0024} & \texttt{FE0512E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{0028} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{C5FB120E} & \texttt{scal64: vmovddup xmm1, qword ptr [rsi]} \\
+Intel & \texttt{0004} & \texttt{C5F91007} & \texttt{vmovupd xmm0, [rdi]} \\
+Intel & \texttt{0008} & \texttt{C5F959C1} & \texttt{vmulpd xmm0, xmm0, xmm1} \\
+Intel & \texttt{000C} & \texttt{C5F91107} & \texttt{vmovupd [rdi], xmm0} \\
+Intel & \texttt{0010} & \texttt{4883C710} & \texttt{add rdi, 16} \\
+Intel & \texttt{0014} & \texttt{4883EA02} & \texttt{sub rdx, 2} \\
+Intel & \texttt{0018} & \texttt{75E6} & \texttt{jnz scal64} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4D40CC41} & \texttt{scal64: ld1r \{v1.2d\}, [x2]} \\
+ARM & \texttt{0004} & \texttt{4C407C20} & \texttt{ld1 \{v0.2d\}, [x1]} \\
+ARM & \texttt{0008} & \texttt{6E61DC00} & \texttt{fmul v0.2d, v0.2d, v1.2d} \\
+ARM & \texttt{000C} & \texttt{4C007C20} & \texttt{st1 \{v0.2d\}, [x1]} \\
+ARM & \texttt{0010} & \texttt{91004021} & \texttt{add x1, x1, \#16} \\
+ARM & \texttt{0014} & \texttt{F1000800} & \texttt{subs x0, x0, \#2} \\
+ARM & \texttt{0018} & \texttt{54FFFF41} & \texttt{b.ne scal64} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx64/scal64.sew64.lmul1.tu.mu.vlen128.xlen64.le.bin}\par

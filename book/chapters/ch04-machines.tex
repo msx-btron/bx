@@ -1,4 +1,5 @@
 \chapter{Machines That Remain MSX and Amiga}
+\label{ch:machines}
 
 \section{The place of the original machines}
 
@@ -16,11 +17,12 @@ Compatibility, here, is a list you can tick on a board, not a promise that every
   \item Address ranges and register layouts of the kept peripherals match the reference machines within documented differences.
   \item Bus width matches: eight bits on BX-8, sixteen bits on BX-16.
   \item Cycle behaviour of the peripherals is specified and tested against the reference documents you choose to follow.
-  \item Software that is written for the BX hart, in RV32I and in the vector profile, drives those peripherals.
-  \item A thin compatibility layer, if you write one, translates or interprets guest code. It is software on the hart, not a second integer pipeline hidden in the decode stage.
+  \item Software that is written for the BX hart, in RV32I and in the vector profile, drives those peripherals. This is the default elaboration, \texttt{host = RV32}.
+  \item A thin compatibility layer, if you write one, translates or interprets guest code. It is software on the hart.
+  \item A host elaboration attaches the same SVM to a softcore you already have: R800 on BX-8, 68000 or SuperH on BX-16, MIPS on BX-32. The adaptor recognises an escape and presents one OP-V parcel. It is not a second decoder hidden inside the RV32 pipeline. Each elaboration has one fetch path.
 \end{itemize}
 
-The original processors remain the reference for what those machines could do with a given number of cycles. They are not instantiated beside the hart. One fetch path, one decode, one writeback.
+The original processors remain the reference for what those machines could do with a given number of cycles. In the RV32 elaboration they are not instantiated beside the hart. In a host elaboration the softcore is the scalar CPU, and the SVM is the vector unit beside it.
 
 \section{Why the peripherals survive the change of processor}
 
@@ -28,7 +30,7 @@ A video display processor does not become simpler because the CPU is RISC-V. Spr
 
 The same is true of the sixteen-bit machine. A blitter is a programmed DMA with a small arithmetic step. SVM-16 can perform the arithmetic in the vector unit, or the blitter can remain a peripheral master. Both organisations are legal on BX-16. The book recommends keeping the peripheral master for compatibility of timing, and using the vector unit for new software.
 
-\section{The four-machine contract}
+\section{The machine contract}
 
 \begin{table}[htbp]
 \centering
@@ -41,8 +43,10 @@ BX-8  & an MSX   & SVM-8, integer, EEW 8 \\
 BX-16 & an Amiga & SVM-16, integer, EEW 8 and 16 \\
 BX-32 & ---      & Zve32f, with FP32 \\
 BX-64 & ---      & V or Zve64d, with FP64 \\
+BX-128 & ---     & V or Zve64d, VLEN 128, ELEN 64 \\
+BX-512 & ---     & V or Zve64d, VLEN 512, ELEN 64 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-BX-32 and BX-64 do not pretend to be a Saturn, a Dreamcast, a PlayStation~2, or a Nintendo~64. They keep the organisational lessons of those machines: more than one hart, local memory, and a vector unit wide enough for geometry. Their compatibility target is the RISC-V specification, not a cartridge port.
+BX-32 and BX-64 keep the organisational lessons of the Saturn, the Dreamcast, the PlayStation~2, and the Nintendo~64: more than one hart, local memory, and a vector unit wide enough for geometry. BX-128 and BX-512 keep that vector contract and pin the register length. RV128I, Chapter~\ref{ch:rv128}, is an integer base with XLEN 128. It has no row in this table and no vector profile. The default compatibility target from BX-32 upward is the RISC-V specification. A host elaboration can sit an SH-2, SH-4, R3000A, VR4300, or Emotion Engine softcore in front of the same SVM. That is an instruction port. It is not a claim that the FPGA image is the console, and it is not a cartridge port.

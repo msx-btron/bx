@@ -1,7 +1,7 @@
 \chapter{Tests That Travel Up the Ladder}
 \label{ch:tests}
 
-\section{One suite, four expectations}
+\section{One suite}
 
 The architectural tests are a single directory. Each test names the narrowest profile that must run it. A wider profile runs it too. A narrower profile does not assemble it, or assembles it and expects an illegal-instruction trap, and the expected trap is itself a test.
 
@@ -12,12 +12,19 @@ Test & First profile & Also required on \\
 \midrule
 \texttt{fill8} & SVM-8 & all wider \\
 \texttt{mask8} & SVM-8 & all wider \\
-\texttt{sew16} & SVM-16 & BX-32, BX-64 \\
-\texttt{vwmul16} & SVM-16 & BX-32, BX-64 \\
-\texttt{sew32} & Zve32f & BX-64 \\
-\texttt{fma32} & Zve32f & BX-64 \\
-\texttt{sew64} & Zve64d or V & BX-64 only \\
-\texttt{fma64} & Zve64d or V & BX-64 only \\
+\texttt{sew16} & SVM-16 & every wider profile \\
+\texttt{vwmul16} & SVM-16 & every wider profile \\
+\texttt{sad16}, \texttt{sw8} & SVM-16 & every wider profile \\
+\texttt{sew32} & Zve32f & BX-64 and above \\
+\texttt{fma32} & Zve32f & BX-64 and above \\
+\texttt{gemm32} & Zve32f & BX-64 and above \\
+\texttt{scal32}--\texttt{iamax32} & Zve32f & BX-64 and above \\
+\texttt{wmul32}, \texttt{bfly32}, \texttt{cmul32} & Zve32f & BX-64 and above \\
+\texttt{sew64} & Zve64d or V & BX-64, BX-128, BX-512 \\
+\texttt{fma64} & Zve64d or V & BX-64, BX-128, BX-512 \\
+\texttt{gemm64} & Zve64d or V & BX-64, BX-128, BX-512 \\
+\texttt{scal64}--\texttt{iamax64} & Zve64d or V & BX-64, BX-128, BX-512 \\
+\texttt{wide32}, \texttt{wide64} & BX-512 & BX-512 \\
 \texttt{badsew} & each profile & trap on that profile \\
 \bottomrule
 \end{tabular}
@@ -35,7 +42,11 @@ The reference is a scalar loop in the testbench, not in the hart. The hart's res
 
 \section{Illegal SEW}
 
-On each image, execute \texttt{vsetvli} with a SEW the profile forbids: 16 on SVM-8, 32 on SVM-16, 64 on Zve32f. Then execute \texttt{vadd.vv}. The add must trap. \texttt{vl} must be unchanged from the previous legal configuration, or zero if there was none, according to the rule you wrote down for \texttt{vill}. The test checks the CSR, not only the trap, because a trap with a silently updated \texttt{vl} will break the next legal loop.
+On each image, execute \texttt{vsetvli} with a SEW the profile forbids: 16 on SVM-8, 32 on SVM-16, 64 on Zve32f, 128 on BX-128, 512 on BX-512. Then execute \texttt{vadd.vv}. The add must trap. \texttt{vl} must be unchanged from the previous legal configuration, or zero if there was none, according to the rule you wrote down for \texttt{vill}. The test checks the CSR, not only the trap, because a trap with a silently updated \texttt{vl} will break the next legal loop.
+
+\section{RV128 images}
+
+\texttt{quad}, \texttt{add128}, \texttt{addd16}, \texttt{zext64}, and \texttt{sh64} run on an RV128 hart. They are integer parcels, and they are outside the travelling vector suite. On BX-128, XLEN is 64, so \texttt{lq} and a shift immediate of 64 are illegal. That trap is the check that the VLEN pin and the integer base stayed apart.
 
 \section{Xsvm tests are separate}
 

@@ -1,9 +1,9 @@
 \chapter{BX-32: Embedded Floating Point with Zve32f}
 \label{ch:bx32}
 
-\section{The first ratified claim}
+\section{The architecture}
 
-BX-32 is an RV32 hart whose data path is thirty-two bits, with the scalar extensions you need for a hosted compiler, and with Zve32f. This is the first machine in the book that is allowed to tell a standard toolchain ``vector, with single-precision float''. The discovery path is the standard one. The custom CSR used by SVM-8 and SVM-16 may remain, returning a code that means ``superset of SVM-16'', but \texttt{misa} and the vector CSRs are authoritative.
+BX-32 is an RV32 hart whose data path is thirty-two bits, with the scalar extensions you need for a hosted compiler, and with Zve32f. Chapter~\ref{ch:rv32} is that integer file. This is the first machine in the book that is allowed to tell a standard toolchain ``vector, with single-precision float''. The discovery path is the standard one. The custom CSR used by SVM-8 and SVM-16 may remain, returning a code that means ``superset of SVM-16'', but \texttt{misa} and the vector CSRs are authoritative.
 
 \begin{spec}
 ELEN = 32. VLEN is at least 128.\\
@@ -167,63 +167,195 @@ Full mask logical set of SVM-16 plus \texttt{vfmv.v.f}, \texttt{vfmv.f.s}, \text
 
 Xsvm remains optional and is not part of the Zve32f claim.
 
+\section{MIPS fetch}
+
+Three MIPS softcores share one escape because none of them assigns coprocessor 3. The word is \texttt{4C000000}: opcode COP3, every other field zero. The following 32-bit word is the OP-V parcel.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Host & Machine & Endian & Left in place \\
+\midrule
+R3000A & PlayStation & little & COP2, the GTE \\
+VR4300 & Nintendo 64 & big & COP1, the FPU \\
+Emotion Engine & PlayStation 2 & little & COP2, which is VU0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\texttt{rs1} selects R0--R31. On the Emotion Engine the architectural GPR is 128 bits wide; this elaboration uses the low 32 bits as the address. The adaptor sits on the instruction bus and claims the COP3 word before Coprocessor Unusable is taken.
+
+The Nintendo 64 vector unit that programmers mean is the RSP, a separate memory and a separate instruction set, not a VR4300 opcode. The PlayStation 2 vector units are VU0 and VU1, with their own 64-bit instruction words. Those units stay. The adaptor feeds the MIPS side.
+
+SH-4 floating point, which BX-16 cannot host, uses the SH-4 escape of Chapter~\ref{ch:bx16} in front of this machine. ELEN 32 is what \texttt{FTRV} was doing with a 4-by-4 of single-precision values. The escape halfword does not move into the \texttt{Fxxx} space.
+
+Harness files are \texttt{kernels/bx32/r3000/}, \texttt{kernels/bx32/vr4300/}, and \texttt{kernels/bx32/ee/}.
+
 \section{Assembler kernels that must run}
 
 In addition to every kernel of Chapters~\ref{ch:bx8} and~\ref{ch:bx16}, the following must pass.
 
+\begin{table}[htbp]
+\centering
+\caption{Kernel analogues on this machine.}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Kernel & RVV & Intel & ARM \\
+\midrule
+sew32 & \texttt{vse32.v} & \texttt{movdqu} & \texttt{st1} \\
+fma32 & \texttt{vfmacc.vv} & \texttt{vfmadd231ps} & \texttt{fmla} \\
+gemm32 & \texttt{vfmacc.vf} & \texttt{vbroadcastss} & \texttt{ld1r} \\
+index32 & \texttt{vluxei32.v} & \texttt{vpgatherdd} & \texttt{ldr} \\
+wmul32 & \texttt{vfmul.vv} & \texttt{vmulps} & \texttt{fmul} \\
+bfly32 & \texttt{vfadd.vv} & \texttt{vaddps} & \texttt{fadd} \\
+cmul32 & \texttt{vfmul.vf} & \texttt{vmulps} & \texttt{fmul} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The comparison table under each kernel is one row per instruction: RVV, then Intel, then ARM. Chapter~\ref{ch:bx8} says which encodings those bytes are.
+
 \subsection{sew32 --- word fill}
-\begin{lstlisting}
-# a0 = n, a1 = fill word, a2 = dst
-sew32:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e32, m1, tu, mu
-    vmv.v.x v1, a1
-    vse32.v v1, (a2)
-    slli    t1, t0, 2
-    add     a2, a2, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+The element is 32 bits. The byte step is \texttt{vl} shifted left by 2.
+
+\input{kernels/gen/cmp-sew32}
 
 \subsection{fma32 --- fused multiply-add strip}
-\begin{lstlisting}
-# a0 = n, a1 = a, a2 = b, a3 = c (dst = a*b + c)
-fma32:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e32, m1, tu, mu
-    vle32.v v1, (a1)
-    vle32.v v2, (a2)
-    vle32.v v3, (a3)
-    vfmacc.vv v3, v1, v2
-    vse32.v v3, (a3)
-    slli    t1, t0, 2
-    add     a1, a1, t1
-    add     a2, a2, t1
-    add     a3, a3, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-fma32}
+
+\subsection{gemm32 --- outer product of a 4-wide panel}
+\label{sec:gemm32}
+
+\texttt{fma32} updates one vector. A matrix product reuses that vector against several scalars from the other matrix. One step loads four singles from the packed A panel, reads each of four packed B scalars with \texttt{flw}, and accumulates with \texttt{vfmacc.vf}. Four accumulators make a 4 by 4 tile, because VLEN 128 holds four SEW-32 elements. \texttt{K} counts those rank-1 updates. Alpha is 1. When beta is not 1, scale C before entering.
+
+\texttt{flw} is LOAD-FP with funct3 010. It shares the opcode byte with \texttt{vle32.v}. The width field separates the scalar load from the vector load.
+
+A and B arrive packed, so the vector load is unit stride. Packing is a copy into a contiguous panel. The loop that chooses the panel size sits outside this image.
+
+This is the inner kernel of the GEMM note cited in the references. That note writes the update in double precision, then widens the tile to four doubles in a \texttt{ymm} and to 24 by 8 in a \texttt{zmm}. The Intel column here is four singles in an \texttt{xmm}, with \texttt{vbroadcastss} and \texttt{vfmadd231ps}. The ARM column is \texttt{ld1r} and \texttt{fmla}.
+
+\input{kernels/gen/cmp-gemm32}
 
 \subsection{index32 --- indexed load (gather)}
-\begin{lstlisting}
-# a0 = n, a1 = base, a2 = index vector (bytes), a3 = dst
-index32:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e32, m1, tu, mu
-    vle32.v  v2, (a2)
-    vluxei32.v v1, (a1), v2
-    vse32.v  v1, (a3)
-    slli    t1, t0, 2
-    add     a2, a2, t1
-    add     a3, a3, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-index32}
 
-\section{Two harts}
+\subsection{wmul32 --- element-wise window}
+A vector times a second vector. AAC inside an MP4 or M4A file, Opus, Vorbis, AC-3, and MP3 apply this window before the transform. A raised-cosine pulse shaper in GNU Radio and liquid-dsp is the same product. A spectrometer calls it the apodization window.
+
+\input{kernels/gen/cmp-wmul32}
+
+\subsection{bfly32 --- radix-2 butterfly}
+One real butterfly with a scalar twiddle, in place: $a + wb$ and $a - wb$. The multiply and the add are separate instructions. \texttt{fma32} is the fused product. FFTW, PocketFFT, KissFFT, vDSP, and muFFT are this step. A complex FFT runs the body on the real array and again on the imaginary array. AAC, Opus, and Vorbis build the MDCT on that FFT. The double-precision form is the same parcels with \texttt{e64}, which is the width FFTW runs by default.
+
+\input{kernels/gen/cmp-bfly32}
+
+\subsection{cmul32 --- complex multiply by one scalar}
+Split real and imaginary arrays times one scalar complex $(w_r, w_i)$. The real part is $a_r w_r - a_i w_i$. The imaginary part is $a_r w_i + a_i w_r$. A software mixer and a shared local oscillator use one scalar against the vector: GNU Radio VOLK and liquid-dsp. A per-lane twiddle is \texttt{wmul32} on each plane, then this add and this subtract. A complex product \texttt{cgemm} is \texttt{gemm32} on each plane plus this cross term.
+
+\input{kernels/gen/cmp-cmul32}
+
+\section{Matrices}
+\label{sec:blas}
+
+A matrix is memory. Storage is column-major. Element $(i, j)$ is at $\mathrm{base} + i + j \times \mathrm{lda}$, which is the address the GEMM note writes as \texttt{A(i,j) = A[(i)+(j)*LDA]}. There is no matrix register. LMUL groups vector registers. A group is still a vector.
+
+The acceptance microkernels do not take \texttt{lda}. The caller packs a panel, and the vector load is unit stride. Packing is a copy, or a stride. Alpha is 1 in these images. When beta is not 1, scale C before the kernel.
+
+Complex BLAS is two real arrays. There is no complex opcode. Triangular, symmetric, packed, and banded routines use the same arithmetic body. The scalar address walk is what changes. A wider VLEN holds a taller column slice of that memory.
+
+\section{BLAS names}
+
+Each standard name below is one of the bodies in this chapter, or the same body with the address rule in the third column. The \texttt{s} forms are SEW 32. Chapter~\ref{ch:bx64} repeats the bodies at SEW 64 for the \texttt{d} forms. \texttt{gemm32} is the product. The bytes are the comparison tables.
+
+\begin{table}[htbp]
+\centering
+\caption{BLAS names on this machine.}
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{5.2cm}p{2.2cm}p{5.6cm}@{}}
+\toprule
+Name & Body & Address rule \\
+\midrule
+sscal & scal32 & one vector, one scalar \\
+scopy & copy32 & two unit-stride vectors \\
+saxpy & axpy32 & \\
+sdot & dot32 & \\
+sdsdot, dsdot & dot32 & convert, then the reduction \\
+snrm2 & nrm232 & square, reduce, square root \\
+sasum & asum32 & absolute value, then a sum \\
+sswap & swap32 & \\
+srot & rot32 & \\
+srotm & rot32 & the flag selects $c$ and $s$ \\
+srotg, srotmg & scalar & no vector body \\
+isamax & iamax32 & one strip, $n \le \mathrm{VLMAX}$ \\
+isamin & iamax32 & a min reduction \\
+sgemv & gemv32 & rows $=$ VLMAX, lda $=$ VLMAX \\
+sgbmv, ssymv, ssbmv, sspmv, strmv & gemv32 & a different walk \\
+strsv, stbsv, stpsv & dot32 & the remaining row, then one scalar store \\
+sger & ger32 & \\
+ssyr, sspr, ssyr2, sspr2 & ger32 & on and above the diagonal \\
+sgemm & gemm32 & a packed panel \\
+ssymm, ssyrk, ssyr2k, strmm & gemm32 & the same product \\
+strsm & trsv & one panel of the triangular solve \\
+c*, z* & the real body & two real arrays \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+
+Softmax is a max, a subtract, an exponential, a sum, and a divide. The exponential is a scalar sequence, or a later extension. ReLU is a max against zero. An embedding is \texttt{index32}. A convolution is a strided copy of patches, then \texttt{gemm32}. Attention is gemm, softmax, gemm.
+
+\begin{table}[htbp]
+\centering
+\caption{Programs that run the BX-32 kernels.}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llp{7.0cm}@{}}
+\toprule
+Kernel & Work & Where it ships \\
+\midrule
+sew32 & word fill & A zeroed float buffer. A cleared embedding row. \\
+fma32 & element $c + ab$ & One step of Horner's rule. A biquad across channels. vDSP \texttt{vDSP\_vma}. A small update in Eigen. \\
+gemm32 & 4-wide rank-1 & \texttt{sgemm} in OpenBLAS, BLIS, and Eigen. The GEMM note. im2col plus this product in Caffe and oneDNN. \\
+index32 & gather & CSR sparse matrix-vector in PETSc. An embedding row. A wavetable read by phase. A stencil that has gathered its neighbours. \\
+scal32 & scale & Volume. LAPACK scaling. The normaliser after \texttt{snrm2}. \\
+copy32 & copy & \texttt{scopy}. Packing a GEMM panel. \\
+axpy32 & scaled add & CG and GMRES. A mix of float audio stems. OpenBLAS \texttt{saxpy}. \\
+dot32 & inner product & \texttt{sdot}. A FIR sum: CMSIS \texttt{arm\_dot\_prod\_f32}, GNU Radio \texttt{fir\_filter}, FFmpeg \texttt{afir}. Cosine similarity. \\
+nrm232 & Euclidean length & \texttt{snrm2}. RMS. The vector length in a least-squares solver. \\
+asum32 & L1 norm & \texttt{sasum}. Mean absolute amplitude. \\
+swap32 & exchange & \texttt{sswap}. A LAPACK pivot exchange. \\
+rot32 & Givens rotation & \texttt{srot}. QR and Jacobi in LAPACK. \\
+gemv32 & matrix-vector & \texttt{sgemv}. A fully connected layer of height VLMAX. One row of a DCT against a cosine matrix. \\
+ger32 & rank-1 & \texttt{sger}. A covariance update. \\
+iamax32 & index of max abs & \texttt{isamax}. A LAPACK pivot. A peak picker. One strip. \\
+wmul32 & window & MDCT window for AAC, Opus, Vorbis, AC-3, MP3. Pulse shaping. Apodization. \\
+bfly32 & radix-2 FFT step & FFTW, PocketFFT, KissFFT, vDSP. The FFT under an IMDCT. \\
+cmul32 & complex mixer & GNU Radio VOLK. liquid-dsp NCO. One local oscillator against a vector of IQ. \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+
+\texttt{cblas\_dgemv} in the GEMM note is the matrix-vector row. \texttt{cblas\_dgemm} is the product. The packing routines in that note are the copy that makes A and B unit stride.
+
+\input{kernels/gen/cmp-scal32}
+\input{kernels/gen/cmp-copy32}
+\input{kernels/gen/cmp-axpy32}
+\input{kernels/gen/cmp-dot32}
+\input{kernels/gen/cmp-nrm232}
+\input{kernels/gen/cmp-asum32}
+\input{kernels/gen/cmp-swap32}
+\input{kernels/gen/cmp-rot32}
+\input{kernels/gen/cmp-gemv32}
+\input{kernels/gen/cmp-ger32}
+\input{kernels/gen/cmp-iamax32}
+
+\section{Harts}
 
 A second RV32 hart is optional. It shares memory through an arbiter you already know how to write, because BX-16 has several masters. The second hart is for a concurrent system, not a different instruction set. Both harts, if both are present, implement Zve32f or the second is a scalar only and the profile card says so. Do not build one hart with FP32 vector and another with a private opcode map.
 

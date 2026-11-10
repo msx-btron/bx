@@ -28,3 +28,43 @@ Discovery on SVM-8 and SVM-16 is the custom CSR you name here, not the V bit.
 \noindent Indexed load from: BX-32\\
 \noindent \texttt{vstart} precise from: BX-64 with a page table\\
 \noindent Lanes in the first image: 1, 4, 4, 2
+
+\bigskip
+\begin{center}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Host & Escape & Endian & Chapter \\
+\midrule
+RV32 / RV64 & native OP-V & little & every RV image \\
+R800 & \texttt{ED 00} & little & BX-8 \\
+68000 & \texttt{F400} & big & BX-16 \\
+SH-2 & \texttt{0000} & big & BX-16 \\
+SH-4 & \texttt{0000} & little & BX-16 \\
+R3000A & \texttt{4C000000} & little & BX-32 \\
+VR4300 & \texttt{4C000000} & big & BX-32 \\
+Emotion Engine & \texttt{4C000000} & little & BX-32 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & BX-128 & BX-512 \\
+\midrule
+XLEN & 64 & 64 \\
+ELEN & 64 & 64 \\
+VLEN & 128 & 512 \\
+Registers & 32 & 32 \\
+VRF, bytes & 512 & 2048 \\
+VLMAX at SEW 64 & 2 & 8 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent BX-128 and BX-512 fetch as the BX-64 RV64 image, or through the BX-32 COP3 pattern with the low 64 bits of the GPR. RV128I is not a row on this card. Its integer register is 128 bits, and the chapter is Chapter~\ref{ch:rv128}.
+
+\bigskip
+\noindent Host on this image: RV32 / RV64 / R800 / 68000 / SH-2 / SH-4 / R3000A / VR4300 / EE

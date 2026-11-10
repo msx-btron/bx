@@ -9,7 +9,18 @@
   \item Vicuna and Vicuna~2. Open Zve32x, and later Zve32f, coprocessors using the CORE-V extension interface. \texttt{vproc} project.
   \item MSX technical handbooks and datapacks, for the peripheral contract of BX-8.
   \item Amiga hardware references for the chipset bus, blitter, and display fetch, for the peripheral contract of BX-16.
-  \item Bluespec SystemVerilog language reference, for the rule semantics assumed in Chapter~14.
+  \item Bluespec SystemVerilog language reference, for the rule semantics assumed in Chapter~\ref{ch:bsv}.
+  \item T.~M.~Tran, P.~Miller, and J.~McLeod, \emph{RISC-V Vector Primer}, Simplex Micro, 2025. External reading. This book does not reproduce it. The primer is published under CC BY-NC-ND 4.0.
+  \item Z80 and R800 opcode map, including the empty \texttt{ED} slots and the R800 multiply encodings, as published by the MSX Assembly Page.
+  \item Motorola, \emph{M68000 Family Programmer's Reference Manual}, for the F-line coprocessor word and the coprocessor identity field.
+  \item Hitachi / Renesas, \emph{SH-4 Software Manual}, and the SH-2 instruction grouping it is upward compatible with, for the 16-bit instruction word and the \texttt{Fxxx} FPU space.
+  \item MIPS instruction encoding for COP3, as implemented by the R3000A, the VR4300, and the Emotion Engine, none of which assign COP3.
+  \item Intel, \emph{Intel 64 and IA-32 Architectures Software Developer's Manual}, Volume 1, for the MMX, SSE, AVX, and AVX-512 programming environments, and for the mnemonics in the kernel tables. The register widths in those chapters are the VLEN analogues in Chapter~\ref{ch:fpga}: \texttt{mm} is 64 bits, \texttt{xmm} is 128, \texttt{ymm} is 256, and \texttt{zmm} is 512.
+  \item Arm, \emph{Arm Architecture Reference Manual} for A-profile, for the NEON, SVE, and SME mnemonics in the kernel tables.
+  \item The GEMM note of 28 September 2023, \url{https://tonpa.guru/stream/2023/2023-09-28\%20GEMM\%20AVX512.htm}. \texttt{gemm32} and \texttt{gemm64} are that note's rank-1 update at VLEN 128. The note's 24 by 8 tile is an AVX-512 register file.
+  \item M.~Farrar. Striped Smith--Waterman speeds database searches six times over other SIMD implementations. \emph{Bioinformatics} 23(2), 2007. \texttt{sw8} is the saturating add and the unsigned max of one stripe.
+  \item RISC-V International. \emph{The RISC-V Instruction Set Manual, Volume I}, RV128I Base Integer Instruction Set, Version 1.7, and the C extension's RV128 forms. The RV128I chapter states that it is not frozen. This book uses it for the register width, the \texttt{*W} and \texttt{*D} sign extension, the seven-bit shift amount, and the major opcodes of \texttt{LDU}, \texttt{LQ}, and \texttt{SQ}.
+  \item QEMU's RISC-V decoder, \texttt{target/riscv/insn32.decode}. The funct3 values of \texttt{lq}, \texttt{sq}, and \texttt{ldu}, and the major opcodes \texttt{1011011} and \texttt{1111011} for the \texttt{*D} instructions, are that decoder's placement of the unfrozen chapter. They are not a ratified encoding.
 \end{enumerate}
 
 \noindent The BX notes \texttt{btron-bx8}, \texttt{btron-bx16}, \texttt{btron-bx32}, \texttt{btron-bx64}, and \texttt{btron-bx-series} record the same ladder. Where an older paragraph in those notes speaks of a private sixteen-bit vector encoding, this book is the later contract: standard OP-V, thirty-two vector registers, and the profile card.

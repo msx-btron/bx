@@ -1,0 +1,26 @@
+\chapter{RV64: The 64-bit Hart}
+\label{ch:rv64}
+
+BX-64, BX-128, and BX-512 share this integer file. XLEN is 64. VLEN is the length the next three chapters recommend or pin. Lane counts, and the same vector files beside an RV128 hart, are Chapter~\ref{ch:fpga}. Chapter~\ref{ch:rv128} widens this integer file to 128 bits. The vector register stays at the length BX-128 or BX-512 already fixed.
+
+\section{The integer file}
+
+Thirty-two general-purpose registers, each 64 bits. The file is 256 bytes. The parcel stays 32 bits.
+
+The RV64 \texttt{*W} operations read the low 32 bits and sign-extend bit 31 through bit 63. \texttt{addiw} is that add. The full-width add is \texttt{addi}. Chapter~\ref{ch:rv128} keeps \texttt{*W} and continues the sign-extension through bit 127.
+
+Chapters~\ref{ch:bx64}, \ref{ch:bx128}, and~\ref{ch:bx512} are the three boards on this file. BX-64 leaves VLEN at 128 or more, with 256 as the recommended elaboration. BX-128 pins VLEN at 128. BX-512 pins VLEN at 512. All three keep this hart.
+
+\section{The address}
+
+The address adder is 64 bits. A vector load takes its base from one of these registers. The address stays 64 bits when VLEN is pinned at 128 and when VLEN is pinned at 512. A BX-512 register still moves on the 64-bit data port of that chapter: eight beats for the whole register.
+
+\section{What crosses into the vector unit}
+
+The base address is the 64-bit GPR. \texttt{vmv.x.s} writes element 0 into a GPR. SEW 64 equals XLEN, so a double fills the register. A narrower element is sign-extended to 64 bits: a SEW-32 element fills bits 63:32 with the sign. Chapter~\ref{ch:rv128} continues that sign-extension through bit 127.
+
+\texttt{vmv.s.x} writes the low SEW bits of the GPR into element 0. A \texttt{.vx} instruction uses those low bits. The floating-point scalar comes from an F register. FLEN is 32 or 64, and \texttt{OPFVF} reads that register. The floating-point file stays at FLEN when the integer file later grows to 128 bits.
+
+\section{Fetch}
+
+The default elaboration fetches a native RV64 parcel. BX-64, BX-128, and BX-512 have no harness directory. A MIPS host, if you attach one, uses the COP3 word \texttt{4C000000} from Chapter~\ref{ch:bx32}. The address is the low 64 bits of the GPR.

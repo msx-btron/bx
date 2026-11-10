@@ -1,0 +1,52 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: sad16}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = src0, a2 = src1, a3 = sum. Sum of |a-b|. Each strip wraps in 16 bits.}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{00000693} & \texttt{sad16: li a3, 0} \\
+RVV & \texttt{0004} & \texttt{04050063} & \texttt{beqz a0, end} \\
+RVV & \texttt{0008} & \texttt{001572D7} & \texttt{loop: vsetvli t0, a0, e16, m1, tu, mu} \\
+RVV & \texttt{000C} & \texttt{0205D087} & \texttt{vle16.v v1, (a1)} \\
+RVV & \texttt{0010} & \texttt{02065107} & \texttt{vle16.v v2, (a2)} \\
+RVV & \texttt{0014} & \texttt{0A1101D7} & \texttt{vsub.vv v3, v1, v2} \\
+RVV & \texttt{0018} & \texttt{0A208257} & \texttt{vsub.vv v4, v2, v1} \\
+RVV & \texttt{001C} & \texttt{1E3201D7} & \texttt{vmax.vv v3, v3, v4} \\
+RVV & \texttt{0020} & \texttt{5E003257} & \texttt{vmv.v.i v4, 0} \\
+RVV & \texttt{0024} & \texttt{02322257} & \texttt{vredsum.vs v4, v3, v4} \\
+RVV & \texttt{0028} & \texttt{42402357} & \texttt{vmv.x.s t1, v4} \\
+RVV & \texttt{002C} & \texttt{006686B3} & \texttt{add a3, a3, t1} \\
+RVV & \texttt{0030} & \texttt{00129313} & \texttt{slli t1, t0, 1} \\
+RVV & \texttt{0034} & \texttt{006585B3} & \texttt{add a1, a1, t1} \\
+RVV & \texttt{0038} & \texttt{00660633} & \texttt{add a2, a2, t1} \\
+RVV & \texttt{003C} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{0040} & \texttt{FC0514E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{0044} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{F30F6F06} & \texttt{sad16: movdqu xmm0, [rsi]} \\
+Intel & \texttt{0004} & \texttt{F30F6F0A} & \texttt{movdqu xmm1, [rdx]} \\
+Intel & \texttt{0008} & \texttt{660FF9C1} & \texttt{psubw xmm0, xmm1} \\
+Intel & \texttt{000C} & \texttt{660F381DC0} & \texttt{pabsw xmm0, xmm0} \\
+Intel & \texttt{0011} & \texttt{660F3801C0} & \texttt{phaddw xmm0, xmm0} \\
+Intel & \texttt{0016} & \texttt{660F3801C0} & \texttt{phaddw xmm0, xmm0} \\
+Intel & \texttt{001B} & \texttt{660F3801C0} & \texttt{phaddw xmm0, xmm0} \\
+Intel & \texttt{0020} & \texttt{660FC5C000} & \texttt{pextrw eax, xmm0, 0} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4C407420} & \texttt{sad16: ld1 \{v0.8h\}, [x1]} \\
+ARM & \texttt{0004} & \texttt{4C407441} & \texttt{ld1 \{v1.8h\}, [x2]} \\
+ARM & \texttt{0008} & \texttt{4E617400} & \texttt{sabd v0.8h, v0.8h, v1.8h} \\
+ARM & \texttt{000C} & \texttt{4E60BC00} & \texttt{addp v0.8h, v0.8h, v0.8h} \\
+ARM & \texttt{0010} & \texttt{4E60BC00} & \texttt{addp v0.8h, v0.8h, v0.8h} \\
+ARM & \texttt{0014} & \texttt{4E60BC00} & \texttt{addp v0.8h, v0.8h, v0.8h} \\
+ARM & \texttt{0018} & \texttt{0E023C00} & \texttt{umov w0, v0.h[0]} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx16/sad16.sew16.lmul1.tu.mu.vlen128.xlen32.le.bin}\par

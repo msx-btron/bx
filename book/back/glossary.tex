@@ -5,11 +5,23 @@
   \item[BX-16] Amiga-compatible FPGA machine. RV32I, sixteen-bit data path, SVM-16.
   \item[BX-32] RV32 machine with Zve32f.
   \item[BX-64] RV64 machine with Zve64d or V.
+  \item[BX-128] RV64 machine. ELEN 64. VLEN pinned at 128. The integer register stays 64 bits.
+  \item[BX-512] RV64 machine. ELEN 64. VLEN pinned at 512.
   \item[Datapath width] Width of the integer ALU and the data bus. Not XLEN.
   \item[ELEN] Widest vector element the implementation supports.
   \item[Profile] A named, unratified subset of RVV behaviour defined by this book: SVM-8 or SVM-16.
+  \item[RV32] Frozen integer base used by BX-8, BX-16, and BX-32. XLEN 32. Thirty-two GPRs, 128 bytes.
+  \item[RV64] Frozen integer base used by BX-64, BX-128, and BX-512. XLEN 64. Thirty-two GPRs, 256 bytes.
+  \item[RV128I] Unfrozen integer base, version 1.7. XLEN 128. A flat 128-bit address. ELEN stays 64 if a vector unit is attached. BX-128 is the VLEN pin on an RV64 hart.
+  \item[SEW] Selected element width, held in \texttt{vtype}. 8, 16, 32, or 64 in this book. The Intel opcode names the same choice: \texttt{paddb}, \texttt{paddw}, \texttt{addps}, \texttt{addpd}.
   \item[SVM] Scalar--vector--matrix. The scalar hart plus an RVV profile; the matrix operations are Xsvm and are optional.
   \item[VLEN] Number of bits in one of the thirty-two vector registers.
-  \item[XLEN] Width of an integer register. 32 until BX-64, then 64.
+  \item[VLMAX] VLEN/SEW at LMUL 1. The most elements one vector register holds.
+  \item[XLEN] Width of an integer register. 32 until BX-64, then 64. 128 only on the RV128I base.
   \item[Xsvm] Optional custom-0 geometry instructions. Not part of a profile. Off on a V-claiming image.
+  \item[Matrix] Memory. Column-major. Element $(i, j)$ is at base $+ i + j \times \mathrm{lda}$. Not a vector register, and not an LMUL group.
+  \item[Lane] The slice of every vector register, and the functional unit beside it, that retires one element group per cycle.
+  \item[Chaining] Starting a consumer vector instruction on the first ready element group while the producer is still writing later groups.
+  \item[Strip mining] The software loop that asks \texttt{vsetvl} again until an arbitrary element count has been consumed.
+  \item[Host escape] The R800, 68000, SuperH, or MIPS bit pattern that introduces one 32-bit OP-V parcel.
 \end{description}

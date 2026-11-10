@@ -23,7 +23,7 @@ Ratified claim & no & no & yes & yes \\
 \end{tabular}
 \end{table}
 
-VLEN on BX-32 and BX-64 may be 256 or 512. The minimum is 128 because that is what the application extension requires, and because Zve32f implementations in this book are built to the same floor so that a BX-32 image can later be compared with a BX-64 image on the same vector length.
+VLEN on BX-32 and BX-64 may be 256 or 512. The minimum is 128 because that is what the application extension requires, and because Zve32f implementations in this book are built to the same floor so that a BX-32 image can later be compared with a BX-64 image on the same vector length. BX-128 and BX-512 pin that length at 128 and 512. ELEN on both is 64. The ladder of element widths ends at 64. RV128I, Chapter~\ref{ch:rv128}, widens the integer register and leaves this element ladder where it is.
 
 \section{Why SVM-8 is not Zve32x}
 

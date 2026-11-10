@@ -1,0 +1,36 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: fill8}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = fill byte, a2 = dst}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{00050E63} & \texttt{fill8: beqz a0, end} \\
+RVV & \texttt{0004} & \texttt{000572D7} & \texttt{loop: vsetvli t0, a0, e8, m1, tu, mu} \\
+RVV & \texttt{0008} & \texttt{5E05C0D7} & \texttt{vmv.v.x v1, a1} \\
+RVV & \texttt{000C} & \texttt{020600A7} & \texttt{vse8.v v1, (a2)} \\
+RVV & \texttt{0010} & \texttt{00560633} & \texttt{add a2, a2, t0} \\
+RVV & \texttt{0014} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{0018} & \texttt{FE0516E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{001C} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{F30F7F07} & \texttt{fill8: movdqu [rdi], xmm0} \\
+Intel & \texttt{0004} & \texttt{4883C710} & \texttt{add rdi, 16} \\
+Intel & \texttt{0008} & \texttt{4883EE10} & \texttt{sub rsi, 16} \\
+Intel & \texttt{000C} & \texttt{77F2} & \texttt{ja fill8} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4E010C20} & \texttt{fill8: dup v0.16b, w1} \\
+ARM & \texttt{0004} & \texttt{4C007040} & \texttt{st1 \{v0.16b\}, [x2]} \\
+ARM & \texttt{0008} & \texttt{91004042} & \texttt{add x2, x2, \#16} \\
+ARM & \texttt{000C} & \texttt{F1004000} & \texttt{subs x0, x0, \#16} \\
+ARM & \texttt{0010} & \texttt{54FFFF88} & \texttt{b.hi fill8} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx8/fill8.sew8.lmul1.tu.mu.vlen32.xlen32.le.bin}\par

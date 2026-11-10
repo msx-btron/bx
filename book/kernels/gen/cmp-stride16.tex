@@ -1,0 +1,40 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: stride16}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = base, a2 = stride (bytes), a3 = dst. Base stays.}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{02050063} & \texttt{stride16: beqz a0, end} \\
+RVV & \texttt{0004} & \texttt{001572D7} & \texttt{loop: vsetvli t0, a0, e16, m1, tu, mu} \\
+RVV & \texttt{0008} & \texttt{0AC5D087} & \texttt{vlse16.v v1, (a1), a2} \\
+RVV & \texttt{000C} & \texttt{0206D0A7} & \texttt{vse16.v v1, (a3)} \\
+RVV & \texttt{0010} & \texttt{00129313} & \texttt{slli t1, t0, 1} \\
+RVV & \texttt{0014} & \texttt{006686B3} & \texttt{add a3, a3, t1} \\
+RVV & \texttt{0018} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{001C} & \texttt{FE0514E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{0020} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{660FC40600} & \texttt{stride16: pinsrw xmm0, [rsi], 0} \\
+Intel & \texttt{0005} & \texttt{4801D6} & \texttt{add rsi, rdx} \\
+Intel & \texttt{0008} & \texttt{660FC40601} & \texttt{pinsrw xmm0, [rsi], 1} \\
+Intel & \texttt{000D} & \texttt{4801D6} & \texttt{add rsi, rdx} \\
+Intel & \texttt{0010} & \texttt{660FC40602} & \texttt{pinsrw xmm0, [rsi], 2} \\
+Intel & \texttt{0015} & \texttt{4801D6} & \texttt{add rsi, rdx} \\
+Intel & \texttt{0018} & \texttt{660FC40603} & \texttt{pinsrw xmm0, [rsi], 3} \\
+Intel & \texttt{001D} & \texttt{F30F7F07} & \texttt{movdqu [rdi], xmm0} \\
+\midrule
+ARM & \texttt{0000} & \texttt{0DC24020} & \texttt{stride16: ld1 \{v0.h\}[0], [x1], x2} \\
+ARM & \texttt{0004} & \texttt{0DC24820} & \texttt{ld1 \{v0.h\}[1], [x1], x2} \\
+ARM & \texttt{0008} & \texttt{0DC25020} & \texttt{ld1 \{v0.h\}[2], [x1], x2} \\
+ARM & \texttt{000C} & \texttt{0DC25820} & \texttt{ld1 \{v0.h\}[3], [x1], x2} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx16/stride16.sew16.lmul1.tu.mu.vlen128.xlen32.le.bin}\par

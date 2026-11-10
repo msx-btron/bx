@@ -1,0 +1,31 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: zext64}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = doubleword, a1 = quadword. High 64 bits of the store are 0.}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RV128 & \texttt{0000} & \texttt{00057283} & \texttt{zext64: ldu t0, 0(a0)} \\
+RV128 & \texttt{0004} & \texttt{0055C023} & \texttt{sq t0, 0(a1)} \\
+RV128 & \texttt{0008} & \texttt{00008067} & \texttt{ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{488B06} & \texttt{zext64: mov rax, qword ptr [rsi]} \\
+Intel & \texttt{0003} & \texttt{488907} & \texttt{mov qword ptr [rdi], rax} \\
+Intel & \texttt{0006} & \texttt{31D2} & \texttt{xor edx, edx} \\
+Intel & \texttt{0008} & \texttt{48895708} & \texttt{mov qword ptr [rdi+8], rdx} \\
+Intel & \texttt{000C} & \texttt{C3} & \texttt{ret} \\
+\midrule
+ARM & \texttt{0000} & \texttt{F9400002} & \texttt{zext64: ldr x2, [x0]} \\
+ARM & \texttt{0004} & \texttt{F9000022} & \texttt{str x2, [x1]} \\
+ARM & \texttt{0008} & \texttt{F900043F} & \texttt{str xzr, [x1, \#8]} \\
+ARM & \texttt{000C} & \texttt{D65F03C0} & \texttt{ret} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/rv128/zext64.sew64.lmul1.tu.mu.vlen0.xlen128.le.bin}\par

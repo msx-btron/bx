@@ -1,0 +1,42 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: mask8}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = fill, a2 = dst, a3 = threshold}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{02050263} & \texttt{mask8: beqz a0, end} \\
+RVV & \texttt{0004} & \texttt{000572D7} & \texttt{loop: vsetvli t0, a0, e8, m1, tu, mu} \\
+RVV & \texttt{0008} & \texttt{02060087} & \texttt{vle8.v v1, (a2)} \\
+RVV & \texttt{000C} & \texttt{6A16C057} & \texttt{vmsltu.vx v0, v1, a3} \\
+RVV & \texttt{0010} & \texttt{5E05C157} & \texttt{vmv.v.x v2, a1} \\
+RVV & \texttt{0014} & \texttt{00060127} & \texttt{vse8.v v2, (a2), v0.t} \\
+RVV & \texttt{0018} & \texttt{00560633} & \texttt{add a2, a2, t0} \\
+RVV & \texttt{001C} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{0020} & \texttt{FE0512E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{0024} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{F30F6F07} & \texttt{mask8: movdqu xmm0, [rdi]} \\
+Intel & \texttt{0004} & \texttt{660F6FCE} & \texttt{movdqa xmm1, xmm6} \\
+Intel & \texttt{0008} & \texttt{660FD8C8} & \texttt{psubusb xmm1, xmm0} \\
+Intel & \texttt{000C} & \texttt{660FEFD2} & \texttt{pxor xmm2, xmm2} \\
+Intel & \texttt{0010} & \texttt{660F74CA} & \texttt{pcmpeqb xmm1, xmm2} \\
+Intel & \texttt{0014} & \texttt{660FDBC1} & \texttt{pand xmm0, xmm1} \\
+Intel & \texttt{0018} & \texttt{660FDFCD} & \texttt{pandn xmm1, xmm5} \\
+Intel & \texttt{001C} & \texttt{660FEBC1} & \texttt{por xmm0, xmm1} \\
+Intel & \texttt{0020} & \texttt{F30F7F07} & \texttt{movdqu [rdi], xmm0} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4C407040} & \texttt{mask8: ld1 \{v0.16b\}, [x2]} \\
+ARM & \texttt{0004} & \texttt{6E203422} & \texttt{cmhi v2.16b, v1.16b, v0.16b} \\
+ARM & \texttt{0008} & \texttt{6EA21C60} & \texttt{bit v0.16b, v3.16b, v2.16b} \\
+ARM & \texttt{000C} & \texttt{4C007040} & \texttt{st1 \{v0.16b\}, [x2]} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx8/mask8.sew8.lmul1.tu.mu.vlen32.xlen32.le.bin}\par

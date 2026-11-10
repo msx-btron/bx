@@ -7,7 +7,7 @@
 \toprule
 Name & Meaning \\
 \midrule
-XLEN & Width of an integer register, in bits. 32 or 64. \\
+XLEN & Width of an integer register, in bits. 32 or 64 on the BX machines. 128 on RV128I. \\
 Datapath & Width of the integer ALU and of the data bus, in bits. \\
 ELEN & Widest vector element the implementation supports. \\
 VLEN & Bits in one vector register. A power of two, at least ELEN. \\
@@ -18,6 +18,9 @@ VLMAX & Maximum VL for the current SEW and LMUL. \\
 LMUL & Register grouping factor. \\
 SVM-8 & BX-8 profile: ELEN 8, VLEN 32, EEW 8. \\
 SVM-16 & BX-16 profile: ELEN 16, VLEN 128, EEW 8 and 16. \\
+Host escape & The byte, halfword, or word a foreign fetch recognises before an OP-V parcel. \\
+CpID & Coprocessor identity in a 68000 F-line word. BX uses 2. \\
+Parcel endian & Which half of the 32-bit OP-V word travels first in the host stream. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -27,5 +30,7 @@ Instructions are written in the usual assembly form, \texttt{vadd.vv v1, v2, v3}
 A \emph{profile} is a named subset of RVV behaviour that this book specifies and that the specification does not ratify under that name. A \emph{ratified extension} is a string the RISC-V manuals define: Zve32f, Zve64d, or V.
 
 Bluespec fragments are illustrative. They show interfaces and rules, not a vendor core. Module names use the prefix \texttt{Bx}.
+
+Intel examples use Intel syntax, destination first. ARM examples use unified syntax, destination first. A host harness file inserts an escape before every RV parcel, including scalar words. A ROM does not. The folder README is the distinction.
 
 The words MSX and Amiga, in this book, name a peripheral and bus contract. They do not name the original microprocessor. BX-8 is MSX-compatible in that contract and can replace an MSX in a rack or on a desk. BX-16 is Amiga-compatible in that contract and can replace an Amiga in the same sense.

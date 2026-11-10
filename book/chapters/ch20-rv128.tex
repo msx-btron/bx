@@ -1,0 +1,318 @@
+\chapter{RV128I: A 128-bit Address}
+\label{ch:rv128}
+
+\section{The board-level picture}
+
+RV128I is an integer base with a flat 128-bit address and an integer register of 128 bits. Version 1.7 of that chapter says the design is not frozen. The reason it gives for the width is address space. BX-128, Chapter~\ref{ch:bx128}, pins VLEN at 128 and keeps an RV64 hart. This chapter is the integer register.
+
+Chapters~\ref{ch:rv32} and~\ref{ch:rv64} open the 32-bit and 64-bit integer files. BX-8, BX-16, and BX-32 follow the first. BX-64, BX-128, and BX-512 follow the second, and they remain on that hart: the 128 and 512 in their names are VLEN. This chapter opens the RV128 file. The BX chapters end with BX-512. A vector unit attached here is the BX-128 file or the BX-512 file, at the lane counts of Chapter~\ref{ch:fpga}. The vector register stays at 128 or 512 bits.
+
+The board is not a console and it does not replace one. Instruction fetch is a 32-bit port: the parcel stays 32 bits. The data port is an implementation choice. A 128-bit port retires a quadword in one beat. A 64-bit port takes two beats, low address first, little-endian. The architectural result is the same either way, which is the lesson BX-8 already teaches for a word on an eight-bit bus.
+
+Thirty-two integer registers, each 128 bits. There is no vector file in the base. A vector unit attached later is one of the profiles in this book: ELEN 64, VLEN whatever that profile pins, thirty-two vector registers. The integer register does not become a vector register.
+
+\begin{spec}
+RV128I, version 1.7. That text says it is not frozen.\\
+XLEN = 128. Thirty-two integer registers.\\
+Instruction port 32 bits. Data port 64 or 128 bits.\\
+No vector file in the base. ELEN stays 64 if one is attached.
+\end{spec}
+
+\section{The architecture}
+
+\begin{spec}
+Builds on RV64I. Most integer operations read and write XLEN bits.\\
+The RV64 \texttt{*W} operations stay, and sign-extend from bit 31 to bit 127.\\
+The \texttt{*D} operations read the low 64 bits and sign-extend from bit 63 to bit 127.\\
+\texttt{LDU} zero-extends a doubleword. \texttt{LQ} and \texttt{SQ} move a quadword.\\
+A shift immediate uses the low 7 bits of the I-immediate.\\
+A shift by a register uses the low 7 bits of the source register.\\
+Floating-point is unchanged. SEW 128 traps.
+\end{spec}
+
+The Q extension, if you implement it, can add \texttt{FMV.X.Q}, \texttt{FMV.Q.X}, and conversions to and from a 128-bit integer. This book does not encode those words. RVV 1.0 still stops at an element of 64 bits. Attaching BX-128 or BX-512 to this hart changes VLEN and leaves ELEN at 64.
+
+The unfrozen text also records a commentary, not a rule: the 64-bit add might later be renamed and the 128-bit add might take the old \texttt{OP-64} slot. The kernels below keep \texttt{addi} as the XLEN add.
+
+\section{Widening}
+
+\texttt{addiw} and \texttt{addw} still operate on the low 32 bits. The result is sign-extended through bit 127, where RV64 stopped the extension at bit 63. \texttt{addid} and \texttt{addd} operate on the low 64 bits and sign-extend bit 63 through bit 127. \texttt{addi} adds across all 128 bits, so a carry out of bit 63 is written into bit 64.
+
+A shift immediate of 4 is the RV64 parcel: the extra shamt bit is clear. A shift immediate of 64 sets that bit. An RV64 decoder rejects the word. A variable shift uses the same R-type parcel as RV64; the amount is simply seven bits of the source register instead of six.
+
+\texttt{ld} still sign-extends a doubleword into the 128-bit register. \texttt{ldu} zero-extends it. \texttt{lq} and \texttt{sq} move all 128 bits. The acceptance kernels use addresses aligned to the access: 8 bytes for \texttt{ldu}, 16 bytes for \texttt{lq} and \texttt{sq}.
+
+\section{Opcode map for RV128I}
+
+The diagrams in this section are the fields the kernels use. Two of them are fixed by the unfrozen chapter together with the ordinary I-type and S-type layouts: \texttt{slli} puts the amount in the low 7 bits of the I-immediate, and \texttt{addi} is the existing OP-IMM word. The funct3 values of \texttt{ldu}, \texttt{lq}, and \texttt{sq}, and the major opcodes of the \texttt{*D} instructions, are the placement in QEMU's \texttt{insn32.decode}. The chapter names the major opcodes and does not draw those funct3 fields. A decoder that follows the sentences literally, and a decoder that follows QEMU, will not agree on \texttt{addid}. The hex in the kernel tables is the QEMU placement, and the prose says where the two readings part.
+
+\subsection{Load double unsigned --- \texttt{ldu}}
+
+I-type. Major opcode LOAD, which is the chapter's assignment. funct3 is 111, the LOAD width QEMU decodes and the width the other LOAD funct3 values leave open. \texttt{ldu t0, 0(a0)} is the word \texttt{00057283}.
+
+\begin{center}
+\begingroup
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{12}{|c|}{I} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{S} &
+\multicolumn{3}{c|}{F} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\endgroup
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+I & = imm[11:0] \\
+S & = rs1 \\
+F & = 111 \\
+D & = rd \\
+O & = 0000011 \\
+\end{tabular}
+\end{center}
+
+\subsection{Load quadword --- \texttt{lq}}
+
+I-type. The chapter puts \texttt{LQ} on MISC-MEM, opcode \texttt{0001111}. QEMU uses funct3 010, and it rejects the word when rd is \texttt{x0}, because that pattern is the cache-block operation. The kernels write \texttt{t0}. \texttt{lq t0, 0(a0)} is the word \texttt{0005228F}.
+
+\begin{center}
+\begingroup
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{12}{|c|}{I} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{S} &
+\multicolumn{3}{c|}{F} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\endgroup
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+I & = imm[11:0] \\
+S & = rs1 \\
+F & = 010 \\
+D & = rd, not \texttt{x0} \\
+O & = 0001111 \\
+\end{tabular}
+\end{center}
+
+\subsection{Store quadword --- \texttt{sq}}
+
+S-type. The chapter puts \texttt{SQ} on STORE. QEMU uses funct3 100. The immediate is split, as in every store. \texttt{sq t0, 0(a1)} is the word \texttt{0055C023}.
+
+\begin{center}
+\begingroup
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{7}{|c|}{I} &
+\multicolumn{5}{c|}{R} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{S} &
+\multicolumn{3}{c|}{F} &
+\multicolumn{5}{c|}{M} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\endgroup
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+I & = imm[11:5] \\
+R & = rs2 (the data) \\
+S & = rs1 (the base) \\
+F & = 100 \\
+M & = imm[4:0] \\
+O & = 0100011 \\
+\end{tabular}
+\end{center}
+
+\subsection{Shift immediate}
+
+OP-IMM, funct3 001 for a left shift, opcode \texttt{0010011}. Bits 26:20 hold the 7-bit amount. Bits 31:27 stay clear, which is how QEMU recognises the word. \texttt{slli a0, a0, 4} is \texttt{00451513}, the same parcel RV64 emits. \texttt{slli a0, a0, 64} is \texttt{04051513}. The kernel uses \texttt{t0} and the word \texttt{04029293}.
+
+\begin{center}
+\begingroup
+\ttfamily\footnotesize
+\setlength{\tabcolsep}{0.3em}
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 \\
+\hline
+\multicolumn{5}{|c|}{Z} &
+\multicolumn{7}{c|}{H} &
+\multicolumn{4}{c|}{S} \\
+\hline
+\end{tabular}
+\vspace{0.35ex}
+
+\begin{tabular}{*{16}{w{c}{1.05em}}}
+15 & 14 & 13 & 12 & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 & 0 \\
+\hline
+\multicolumn{1}{|c|}{S} &
+\multicolumn{3}{c|}{F} &
+\multicolumn{5}{c|}{D} &
+\multicolumn{7}{c|}{O} \\
+\hline
+\end{tabular}
+\endgroup
+\end{center}
+
+\vspace{1.4ex}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+Z & = 00000 \\
+H & = shamt[6:0] \\
+S & = rs1 \\
+F & = 001 for \texttt{slli}, 101 for a right shift \\
+D & = rd \\
+O & = 0010011 \\
+\end{tabular}
+\end{center}
+
+A right shift sets bit 30 when it is arithmetic, and keeps bits 31 and 29:27 clear. The amount still occupies bits 26:20.
+
+\subsection{The \texttt{*D} operations}
+
+The chapter says these instructions consume OP-IMM-64 and OP-64. Those major opcodes are \texttt{0011011} and \texttt{0111011}. RV64 already uses them for \texttt{addiw} and \texttt{addw}, and the same chapter retains the \texttt{*W} set, so the two sentences do not name a free opcode. QEMU leaves \texttt{*W} on \texttt{0011011} and \texttt{0111011} and places \texttt{*D} on \texttt{1011011} and \texttt{1111011}. The table is that decoder. \texttt{addid t0, t0, 16} in the kernel is \texttt{010282DB}. An implementation that reuses OP-IMM-64 will not match the image.
+
+\begin{center}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lllp{6.4cm}@{}}
+\toprule
+Mnemonic & Shape & Opcode in the text & QEMU placement \\
+\midrule
+\texttt{addid} & I & \texttt{0011011} & \texttt{1011011}, funct3 000 \\
+\texttt{sllid} & I, shamt 6 & \texttt{0011011} & \texttt{1011011}, funct3 001, bits 31:26 = 000000 \\
+\texttt{srlid} & I, shamt 6 & \texttt{0011011} & \texttt{1011011}, funct3 101, bits 31:26 = 000000 \\
+\texttt{sraid} & I, shamt 6 & \texttt{0011011} & \texttt{1011011}, funct3 101, bits 31:26 = 010000 \\
+\texttt{addd} & R & \texttt{0111011} & \texttt{1111011}, funct3 000, funct7 0000000 \\
+\texttt{subd} & R & \texttt{0111011} & \texttt{1111011}, funct3 000, funct7 0100000 \\
+\texttt{slld} & R & \texttt{0111011} & \texttt{1111011}, funct3 001, funct7 0000000 \\
+\texttt{srld} & R & \texttt{0111011} & \texttt{1111011}, funct3 101, funct7 0000000 \\
+\texttt{srad} & R & \texttt{0111011} & \texttt{1111011}, funct3 101, funct7 0100000 \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{center}
+
+QEMU also decodes \texttt{muld}, \texttt{divd}, \texttt{divud}, \texttt{remd}, and \texttt{remud} on \texttt{1111011} with funct7 \texttt{0000001}. The fetched RV128I chapter does not list that multiply set. This book does not encode it. Only \texttt{addid} appears in an acceptance image.
+
+\texttt{addi a0, a0, 16} is \texttt{01050513}. That word is the ordinary OP-IMM parcel, and on this base the add is 128 bits wide. \texttt{addi t0, t0, 16} is \texttt{01028293}.
+
+\subsection{Compressed parcels}
+
+The C extension can sit on RV32, RV64, or RV128. A few quadrants change meaning with the base. On RV128 the slot used for \texttt{C.FLD} becomes \texttt{C.LQ}, and the slot used for \texttt{C.FSD} becomes \texttt{C.SQ}. The stack forms are \texttt{C.LQSP} and \texttt{C.SQSP}. The offset is scaled by 16. \texttt{C.LQ} expands to \texttt{lq rd', offset(rs1')}. \texttt{C.LQSP} expands to \texttt{lq rd, offset(x2)}, and the form with \texttt{rd} equal to \texttt{x0} is reserved. \texttt{C.LD} and \texttt{C.SD} stay in their own slots.
+
+\texttt{C.SLLI64}, \texttt{C.SRLI64}, and \texttt{C.SRAI64} are shifts by 64 on RV128. On RV32 and RV64 those code points are hints. The acceptance images contain none of these 16-bit parcels. Every word in the tables is 32 bits.
+
+\section{Native fetch}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Path & Escape & Address \\
+\midrule
+RV128 & native parcel & full 128-bit GPR \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The parcel is little-endian. There is no escape and there is no harness directory. A host injection story does not apply: the address the base exists to provide is already in the GPR. COP3, the R800 \texttt{ED} prefix, the 68000 F-line, and the SuperH \texttt{0000} prefix stay on the machines that define them.
+
+\section{Assembler kernels that must run}
+
+Five images. Each one is a raw little-endian parcel stream. The filename records \texttt{xlen128} and \texttt{vlen0}: the image configures no \texttt{vtype}, and it does not pin VLEN. \texttt{sew64} in that name is the filename slot. It is the widest element a later vector unit may use. It is not an instruction field, and it is not SEW 128.
+
+The first column of each table is RV128. Intel is x86-64, assembled by clang with AVX2 and without AVX-512. ARM is AArch64. Both of those machines have 64-bit general registers. \texttt{quad} moves 16 bytes through an \texttt{xmm} and through a NEON register. The other four strips write the high half of the quadword with a second store: a carry, a sign fill, a zero, or the shifted half. SVE is not in these bytes.
+
+\begin{table}[htbp]
+\centering
+\caption{Kernel analogues on this base.}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Kernel & RV128 & Intel & ARM \\
+\midrule
+quad & \texttt{lq}, \texttt{sq} & \texttt{movdqu} & \texttt{ld1} \\
+add128 & \texttt{addi} & \texttt{add}, \texttt{adc} & \texttt{adds}, \texttt{adc} \\
+addd16 & \texttt{addid} & \texttt{add}, \texttt{sar} & \texttt{add}, \texttt{asr} \\
+zext64 & \texttt{ldu} & \texttt{mov} & \texttt{ldr} \\
+sh64 & \texttt{slli} & \texttt{mov} & \texttt{ldr} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\texttt{quad} copies one aligned quadword and then adds 16 to both pointers with \texttt{addi}. \texttt{add128} adds 16 across the whole register, so a carry out of bit 63 is kept. \texttt{addd16} adds 16 to the low 64 bits and sign-extends bit 63; the high half of the loaded value is discarded, and the \texttt{addid} word is the QEMU opcode. \texttt{zext64} zero-extends a doubleword into a stored quadword. \texttt{sh64} shifts a quadword left by 64. The bits that leave the top are gone, and the low half becomes the high half.
+
+\begin{table}[htbp]
+\centering
+\caption{Programs that run the RV128 kernels.}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llp{7.2cm}@{}}
+\toprule
+Kernel & Work & Where it ships \\
+\midrule
+quad & 16-byte move & One AES block of payload, the move. One IPv6 address. A 16-byte spill of a wide register. \\
+add128 & quadword plus 16 & A 128-bit cursor stepped by one block. A limb counter that carries into bit 64. \\
+addd16 & low 64 bits plus 16 & A 64-bit length kept in the low half of the register. \\
+zext64 & zero-extend & A 64-bit file size loaded into a 128-bit address register. \\
+sh64 & shift by one limb & The low half placed into the high half. One limb of a two-limb shift. \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+
+\input{kernels/gen/cmp-quad}
+\input{kernels/gen/cmp-add128}
+\input{kernels/gen/cmp-addd16}
+\input{kernels/gen/cmp-zext64}
+\input{kernels/gen/cmp-sh64}
+
+\section{Harts}
+
+One RV128 hart is the default. A second hart, if the elaboration has one, is another RV128 integer hart. A vector coprocessor beside either hart is BX-128 or BX-512: ELEN 64, VLEN pinned by that chapter, SEW 128 illegal. The coprocessor does not widen the integer register. DMA may move quadwords. It does not fetch parcels, and it does not decode \texttt{lq}. Xsvm stays off. There is no host escape on this image.

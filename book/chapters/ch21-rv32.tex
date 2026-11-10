@@ -1,0 +1,30 @@
+\chapter{RV32: The 32-bit Hart}
+\label{ch:rv32}
+
+BX-8, BX-16, and BX-32 share this integer file. The vector unit is what changes from chapter to chapter. Lane counts for those machines are the RV32 rows of Section~\ref{sec:lanes}. This chapter is the scalar side the next three boards attach.
+
+\section{The integer file}
+
+Thirty-two general-purpose registers, each 32 bits. The file is 128 bytes. \texttt{x0} reads as zero. Every parcel is 32 bits, and every OP-V word is one of those parcels.
+
+The data path may be narrower than the register. On BX-8 the ALU and the bus are eight bits, so one word takes four beats. On BX-16 the bus is sixteen bits, so one word takes two beats. On BX-32 the data path is 32 bits and one word takes one beat. The value written back is the 32-bit architectural result on all three. Chapters~\ref{ch:bx8}, \ref{ch:bx16}, and~\ref{ch:bx32} are those boards.
+
+\section{The address}
+
+The address adder is 32 bits. A vector load takes its base from one of these registers. BX-16 keeps VLEN at 128 on this adder. BX-32 keeps the same adder and raises ELEN to 32. The address width is XLEN.
+
+\section{What crosses into the vector unit}
+
+Three values leave this file for the vector unit. The base address of a load or a store is the whole GPR. The scalar operand of a \texttt{.vx} instruction is the low SEW bits of a GPR. Element 0 comes back through \texttt{vmv.x.s}.
+
+\texttt{vmv.x.s} writes element 0 into a GPR. When SEW is narrower than 32, the element is sign-extended to 32 bits. On BX-8, SEW is 8, so a byte sign-fills the register. On BX-16, SEW is 8 or 16. On BX-32 the widest element is 32 bits, which equals XLEN, so the element fills the GPR.
+
+\texttt{vmv.s.x} writes a GPR into element 0. When SEW is narrower than 32, the low SEW bits are copied and the bits above SEW stay out of the element. A \texttt{.vx} instruction uses those same low bits. On these three machines SEW is at most 32, so the GPR holds the whole element.
+
+BX-8 and BX-16 have no floating-point register file. On BX-32 the floating-point scalar is an F register of 32 bits, and \texttt{OPFVF} reads that register.
+
+\section{Fetch}
+
+The default elaboration fetches RV32 on a 32-bit instruction port. OP-V uses that port.
+
+A host elaboration puts an escape in front of one OP-V parcel. The integer pipeline belongs to the softcore you bring. BX-8 uses the R800 escape \texttt{ED 00}, little-endian. BX-16 uses the 68000 escape \texttt{F400}, the SH-2 escape \texttt{0000} in big-endian, and the SH-4 escape \texttt{0000} in little-endian. BX-32 uses the COP3 word \texttt{4C000000}. The adaptor record is Chapter~\ref{ch:intro}. The register maps are in the machine chapters. A harness file prefixes the escape before every RV parcel and still contains RV register numbers. A ROM escapes only OP-V, writes the branch in the host instruction set, and reassembles \texttt{rs1} as a host index.

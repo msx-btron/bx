@@ -1,9 +1,9 @@
 \chapter{BX-64: Application Vectors with V and Zve64d}
 \label{ch:bx64}
 
-\section{The top of the ladder}
+\section{The architecture}
 
-BX-64 widens XLEN to 64. The base is RV64I. The vector unit is Zve64d or the full application extension V. ELEN is 64. VLEN is at least 128, and 256 is the recommended elaboration when the block RAM budget allows a file of thirty-two registers times 256 bits, which is one kilobyte.
+BX-64 widens XLEN to 64. The base is RV64I. Chapter~\ref{ch:rv64} is that integer file. The vector unit is Zve64d or the full application extension V. ELEN is 64. VLEN is at least 128, and 256 is the recommended elaboration when the block RAM budget allows a file of thirty-two registers times 256 bits, which is one kilobyte.
 
 \begin{spec}
 Legal SEW = 8, 16, 32, and 64.\\
@@ -13,7 +13,7 @@ and the V bit set in \texttt{misa}.\\
 If the claim is Zve64d: do not set the V bit.
 \end{spec}
 
-The second sentence is the one that keeps the ladder honest. A machine that implements double-precision vector arithmetic and not yet the whole of V is a useful machine. It is not a V machine.
+The second sentence is the one that keeps the ladder honest. A machine that implements double-precision vector arithmetic and not yet the whole of V is a useful machine. It is not a V machine. Chapters~\ref{ch:bx128} and~\ref{ch:bx512} keep this element width and pin the register length. An integer register of 128 bits is Chapter~\ref{ch:rv128}.
 
 \section{What arrives with sixty-four-bit elements}
 
@@ -136,61 +136,96 @@ Xsvm must be left off on any image that claims V.
 
 \section{Assembler kernels that must run}
 
-In addition to every kernel of the lower profiles, the following must pass on BX-64.
+In addition to every kernel of the lower profiles, the following must pass on BX-64. The COP3 framing of Chapter~\ref{ch:bx32} is the host pattern at this width too. The address is the low 64 bits of the GPR. There is no separate harness directory in this edition.
+
+\begin{table}[htbp]
+\centering
+\caption{Kernel analogues on this machine.}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Kernel & RVV & Intel & ARM \\
+\midrule
+sew64 & \texttt{vse64.v} & \texttt{vmovupd} & \texttt{st1} \\
+fma64 & \texttt{vfmacc.vv} & \texttt{vfmadd231pd} & \texttt{fmla} \\
+gemm64 & \texttt{vfmacc.vf} & \texttt{vmovddup} & \texttt{ld1r} \\
+index64 & \texttt{vluxei64.v} & \texttt{vpgatherqq} & \texttt{ldr} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The comparison table under each kernel is one row per instruction: RVV, then Intel, then ARM. Chapter~\ref{ch:bx8} says which encodings those bytes are.
 
 \subsection{sew64 --- double-word fill}
-\begin{lstlisting}
-# a0 = n, a1 = fill, a2 = dst
-sew64:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e64, m1, tu, mu
-    vmv.v.x v1, a1
-    vse64.v v1, (a2)
-    slli    t1, t0, 3
-    add     a2, a2, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+The element is 64 bits. VLEN 128 holds two of them.
+
+\input{kernels/gen/cmp-sew64}
 
 \subsection{fma64 --- double-precision fused multiply-add}
-\begin{lstlisting}
-# a0 = n, a1 = a, a2 = b, a3 = c (dst = a*b + c)
-fma64:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e64, m1, tu, mu
-    vle64.v v1, (a1)
-    vle64.v v2, (a2)
-    vle64.v v3, (a3)
-    vfmacc.vv v3, v1, v2
-    vse64.v v3, (a3)
-    slli    t1, t0, 3
-    add     a1, a1, t1
-    add     a2, a2, t1
-    add     a3, a3, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-fma64}
+
+\subsection{gemm64 --- outer product of a 2-wide panel}
+
+The BX-32 catalogue in Section~\ref{sec:blas} is the same list at SEW 64, with \texttt{fma64}, \texttt{index64}, and \texttt{gemm64}. VLEN 128 holds two doubles, so the acceptance tile is 2 by 4: one vector of A and four broadcast scalars from B. \texttt{fld} is LOAD-FP with funct3 011.
+
+The GEMM note's AVX2 tile holds four doubles in a \texttt{ymm}. Its AVX-512 tile is 24 by 8, eight doubles in each \texttt{zmm}. The Intel column here is two doubles in an \texttt{xmm}. \texttt{vmovddup} writes both lanes from one memory double.
+
+\input{kernels/gen/cmp-gemm64}
 
 \subsection{index64 --- indexed load at SEW=64}
-\begin{lstlisting}
-# a0 = n, a1 = base, a2 = index vector, a3 = dst
-index64:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e64, m1, tu, mu
-    vle64.v   v2, (a2)
-    vluxei64.v v1, (a1), v2
-    vse64.v   v1, (a3)
-    slli    t1, t0, 3
-    add     a2, a2, t1
-    add     a3, a3, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+The index EEW and the data EEW are both 64.
 
-\section{Two harts, local memory, DMA}
+\input{kernels/gen/cmp-index64}
+
+\section{The same bodies at SEW 64}
+
+The names in Section~\ref{sec:blas} with a \texttt{d} prefix use these images. \texttt{ddot} is \texttt{dot64}. \texttt{dnrm2} is \texttt{nrm264}. \texttt{dasum} is \texttt{asum64}. \texttt{drotg} and \texttt{drotmg} stay scalar. \texttt{idamax} is one strip of \texttt{iamax64}. The product is \texttt{gemm64}. The Intel column of that product is two doubles, via \texttt{vmovddup}. A \texttt{ymm} holds four doubles. A 24 by 8 tile is \texttt{zmm}, and that register file is Chapter~\ref{ch:bx512}.
+
+Reassemble \texttt{bfly32}, \texttt{wmul32}, and \texttt{cmul32} with \texttt{e64} when the samples are doubles. FFTW's default transform, NumPy's \texttt{fft}, and a double-precision channelizer are that butterfly. GNU Radio's fast path stays at SEW 32.
+
+\begin{table}[htbp]
+\centering
+\caption{Programs that run the BX-64 kernels.}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llp{7.0cm}@{}}
+\toprule
+Kernel & Work & Where it ships \\
+\midrule
+sew64 & doubleword fill & A zeroed double buffer. \\
+fma64 & element $c + ab$ & A double polynomial step. The inner product of a compensated sum, written as a vector. \\
+gemm64 & 2-wide rank-1 & \texttt{dgemm} in OpenBLAS, BLIS, and LAPACK's callers. The GEMM note's double update, here two doubles wide. \\
+index64 & gather of doubles & Sparse matrix-vector with double values. A gather of double-precision samples. \\
+scal64 & scale & \texttt{dscal}. Column scaling in LAPACK. \\
+copy64 & copy & \texttt{dcopy}. Packing a double panel. \\
+axpy64 & scaled add & \texttt{daxpy}. CG in double precision. \\
+dot64 & inner product & \texttt{ddot}. A double correlation. SoXR's high-quality FIR. \\
+nrm264 & Euclidean length & \texttt{dnrm2}. A residual norm in a double least-squares solve. \\
+asum64 & L1 norm & \texttt{dasum}. \\
+swap64 & exchange & \texttt{dswap}. Partial pivoting. \\
+rot64 & Givens rotation & \texttt{drot}. Double QR. \\
+gemv64 & matrix-vector & \texttt{dgemv}. The GEMM note's \texttt{cblas\_dgemv}, two doubles tall. \\
+ger64 & rank-1 & \texttt{dger}. A double covariance update. \\
+iamax64 & index of max abs & \texttt{idamax}. The pivot of a double LU. One strip. \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+
+\input{kernels/gen/cmp-scal64}
+\input{kernels/gen/cmp-copy64}
+\input{kernels/gen/cmp-axpy64}
+\input{kernels/gen/cmp-dot64}
+\input{kernels/gen/cmp-nrm264}
+\input{kernels/gen/cmp-asum64}
+\input{kernels/gen/cmp-swap64}
+\input{kernels/gen/cmp-rot64}
+\input{kernels/gen/cmp-gemv64}
+\input{kernels/gen/cmp-ger64}
+\input{kernels/gen/cmp-iamax64}
+
+\section{Harts}
 
 The organisation that justifies a second hart is the one the wide machines are for: one hart runs the operating system and short vector work, the other runs a longer kernel from a local memory. Both are RV64 with the same vector claim. A DMA engine moves blocks into that local memory. The DMA is a bus master programmed by stores, in the same style as the blitter on BX-16. It does not fetch vector instructions.
 

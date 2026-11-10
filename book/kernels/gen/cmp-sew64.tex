@@ -1,0 +1,33 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: sew64}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = n, a1 = fill, a2 = dst}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{02050063} & \texttt{sew64: beqz a0, end} \\
+RVV & \texttt{0004} & \texttt{003572D7} & \texttt{loop: vsetvli t0, a0, e64, m1, tu, mu} \\
+RVV & \texttt{0008} & \texttt{5E05C0D7} & \texttt{vmv.v.x v1, a1} \\
+RVV & \texttt{000C} & \texttt{020670A7} & \texttt{vse64.v v1, (a2)} \\
+RVV & \texttt{0010} & \texttt{00329313} & \texttt{slli t1, t0, 3} \\
+RVV & \texttt{0014} & \texttt{00660633} & \texttt{add a2, a2, t1} \\
+RVV & \texttt{0018} & \texttt{40550533} & \texttt{sub a0, a0, t0} \\
+RVV & \texttt{001C} & \texttt{FE0514E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{0020} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{C4E1F96EC6} & \texttt{sew64: vmovq xmm0, rsi} \\
+Intel & \texttt{0005} & \texttt{C4E27959C0} & \texttt{vpbroadcastq xmm0, xmm0} \\
+Intel & \texttt{000A} & \texttt{C5F91107} & \texttt{vmovupd [rdi], xmm0} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4E080C20} & \texttt{sew64: dup v0.2d, x1} \\
+ARM & \texttt{0004} & \texttt{4C007C40} & \texttt{st1 \{v0.2d\}, [x2]} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx64/sew64.sew64.lmul1.tu.mu.vlen128.xlen64.le.bin}\par

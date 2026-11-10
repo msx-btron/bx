@@ -3,7 +3,7 @@
 
 \section{The board-level picture}
 
-BX-16 can replace an Amiga in the same practical sense that BX-8 can replace an MSX. The bus is sixteen bits wide. Several masters share it: the hart, a blitter-class block mover, video fetch, and audio DMA. Chip memory and a larger local memory sit on that bus. The display timing can follow a programmed list of fetches, in the role a copper list fills on the original machine. The hart that runs the list is RV32I with a sixteen-bit data path.
+BX-16 can replace an Amiga in the same practical sense that BX-8 can replace an MSX. The bus is sixteen bits wide. Several masters share it: the hart, a blitter-class block mover, video fetch, and audio DMA. Chip memory and a larger local memory sit on that bus. The display timing can follow a programmed list of fetches, in the role a copper list fills on the original machine. The hart that runs the list is RV32I with a sixteen-bit data path. Chapter~\ref{ch:rv32} is that integer file.
 
 Integer registers remain thirty-two bits. A load word takes two halfword beats. Instruction fetch is again allowed its own port so that video DMA does not stall the decode of every parcel.
 
@@ -37,7 +37,7 @@ Both instructions are undisturbed outside \texttt{vl}. Both are absent from the 
 
 \section{Opcode map for SVM-16}
 
-Everything legal on SVM-8 remains legal. The additional classes required by SVM-16 are shown with the same rigid two-line matrix. SEW may be 8 or 16. The complete cross-profile contract and full opcode summary appear after the four machines, in Chapter~\ref{ch:bsv}.
+Everything legal on SVM-8 remains legal. The additional classes required by SVM-16 are shown with the same rigid two-line matrix. SEW may be 8 or 16. The complete cross-profile contract and full opcode summary appear after the machines, in Chapter~\ref{ch:bsv}.
 
 \subsection{Configuration}
 
@@ -221,74 +221,107 @@ O & = 0001011 (custom-0) \\
 
 Matrix and cross-product are distinguished by the custom funct6 / funct3 values documented in the profile card. They are illegal when \texttt{xsvm = False}.
 
+\section{68000, SH-2, and SH-4 fetch}
+
+The adaptor is the record in Chapter~\ref{ch:intro}. BX-16 fills three columns. It does not restate the mechanism.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Host & Escape & Endian & \texttt{rs1} \\
+\midrule
+68000 & \texttt{F400} & big, high halfword first & D0--D7, then A0--A7 \\
+SH-2 & \texttt{0000} & big, high halfword first & R0--R15 \\
+SH-4 & \texttt{0000} & little, low halfword first & R0--R15 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\texttt{F400} is F-line, coprocessor id 2, general type, effective-address field zero. Coprocessor id 0 is the PMMU slot. Coprocessor id 1 is the 68881. The two extension words are the OP-V parcel.
+
+\texttt{0000} is undefined on SH-2 and SH-4. The defined NOP is \texttt{0009}. Saturn fetch is big-endian, so the SH-2 frame and the SH-4 frame are different files. Dreamcast fetch is little-endian.
+
+Do not claim these words. An A-line word is the Amiga library trap. An SH-4 \texttt{Fxxx} word is the FPU, including \texttt{FTRV} and \texttt{FIPR}. SVM-16 does not set \texttt{misa}.V. SH-4 on this machine is an integer injection: ELEN is 16, and there is no FP32. A floating-point transform uses the same escape in front of BX-32.
+
+The 68000 exception for a parcel the SVM rejects is F-line. The SuperH exception is illegal instruction. The blitter remains a peripheral master. It does not fetch OP-V.
+
+Harness files live in \texttt{kernels/bx16/m68k/}, \texttt{kernels/bx16/sh2/}, and \texttt{kernels/bx16/sh4/}. They frame every RV parcel. A ROM re-assembles \texttt{rs1} and writes the branch in the host ISA.
+
 \section{Assembler kernels that must run}
 
-In addition to every kernel of Chapter~\ref{ch:bx8}, the following must pass on every BX-16 image (Xsvm kernels are excluded from the travelling suite).
+In addition to every kernel of Chapter~\ref{ch:bx8}, the following must pass on every BX-16 image (Xsvm kernels are excluded from the travelling suite). \texttt{redsum16} strip-mines. A single \texttt{vsetvli} would keep only \texttt{VLMAX} elements, which is 8 at SEW 16, LMUL 1, VLEN 128. The per-strip sum is a wrapped SEW-16 result; \texttt{a2} accumulates those results in XLEN.
+
+\begin{table}[htbp]
+\centering
+\caption{Kernel analogues on this machine.}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Kernel & RVV & Intel & ARM \\
+\midrule
+sew16 & \texttt{vse16.v} & \texttt{movdqu} & \texttt{st1} \\
+vwmul16 & \texttt{vwmul.vv} & \texttt{pmullw} & \texttt{smull} \\
+stride16 & \texttt{vlse16.v} & \texttt{pinsrw} & \texttt{ld1} \\
+redsum16 & \texttt{vredsum.vs} & \texttt{phaddw} & \texttt{addp} \\
+sad16 & \texttt{vmax.vv} & \texttt{pabsw} & \texttt{sabd} \\
+sw8 & \texttt{vsaddu.vv} & \texttt{pmaxub} & \texttt{umax} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Where these kernels run}
+
+\begin{table}[htbp]
+\centering
+\caption{Programs that run the BX-16 kernels.}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llp{7.2cm}@{}}
+\toprule
+Kernel & Work & Where it ships \\
+\midrule
+sew16 & halfword fill & Silence in 16-bit PCM. A cleared H.264 residual buffer. \\
+vwmul16 & Q15 multiply, then saturate & CMSIS-DSP \texttt{arm\_scale\_q15}. A blitter scaler. Fixed-point gain in sox and in FFmpeg's integer resampler. \\
+stride16 & strided halfword gather & Deinterleave of stereo S16, stride 4 bytes. One column of a 16-bit image. One channel of interleaved int16 IQ. \\
+redsum16 & halfword sum & Block energy after a Q15 square. The DC of a small residual. The horizontal add under \texttt{sad16}. \\
+sad16 & sum of absolute differences & Motion estimation. x264 \texttt{pixel\_sad}, x265, dav1d, SVT-AV1, FFmpeg. MPEG-2, MPEG-4, H.264, HEVC, VC-1, AV1. \\
+sw8 & saturating add, then max & One stripe of Farrar Smith--Waterman. parasail, SSW, SWIPE. \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+
+The comparison table under each kernel is one row per instruction: RVV, then Intel, then ARM. Chapter~\ref{ch:bx8} says which encodings those bytes are.
 
 \subsection{sew16 --- halfword fill}
-\begin{lstlisting}
-# a0 = n (elements), a1 = fill halfword, a2 = dst
-sew16:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e16, m1, tu, mu
-    vmv.v.x v1, a1
-    vse16.v v1, (a2)
-    slli    t1, t0, 1
-    add     a2, a2, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-sew16}
 
 \subsection{vwmul16 --- widening multiply then narrow with saturation}
-\begin{lstlisting}
-# a0 = n, a1 = src0 (SEW16), a2 = src1, a3 = dst (SEW16)
-vwmul16:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e16, m1, tu, mu
-    vle16.v v2, (a1)
-    vle16.v v4, (a2)
-    vwmul.vv v8, v2, v4
-    vsetvli t0, a0, e16, m1, tu, mu
-    vnclip.wi v1, v8, 0
-    vse16.v v1, (a3)
-    slli    t1, t0, 1
-    add     a1, a1, t1
-    add     a2, a2, t1
-    add     a3, a3, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-vwmul16}
 
 \subsection{stride16 --- constant-stride gather of halfwords}
-\begin{lstlisting}
-# a0 = n, a1 = src base, a2 = stride (bytes), a3 = dst
-stride16:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e16, m1, tu, mu
-    vlse16.v v1, (a1), a2
-    vse16.v  v1, (a3)
-    slli    t1, t0, 1
-    add     a3, a3, t1
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+The base in \texttt{a1} is not advanced. The table re-reads the same strip when \texttt{n} exceeds \texttt{VLMAX}. An acceptance test uses \texttt{n} at most \texttt{VLMAX}, or the reader adds the byte advance \texttt{vl * stride}. That advance is a multiply. M is optional on this machine, so the printed kernel does not depend on it.
+
+\input{kernels/gen/cmp-stride16}
 
 \subsection{redsum16 --- integer reduction}
-\begin{lstlisting}
-# a0 = n, a1 = src (SEW16), a2 = scalar accumulator out
-redsum16:
-    vsetvli t0, a0, e16, m1, tu, mu
-    vle16.v v1, (a1)
-    vmv.v.i v2, 0
-    vredsum.vs v2, v1, v2
-    vmv.x.s a2, v2
-    ret
-\end{lstlisting}
+\input{kernels/gen/cmp-redsum16}
 
-\section{One hart}
+\subsection{sad16 --- sum of absolute differences}
+
+Signed halfwords. An 8-bit pixel promoted into a halfword has a difference from $-255$ to $255$, and eight of those fit in the signed strip sum. Full-scale 16-bit audio can wrap inside the strip. \texttt{a3} accumulates the sign-extended piece, the same rule as \texttt{redsum16}. \texttt{pabsw} is the SSSE3 halfword absolute value. \texttt{psadbw} sums bytes into words.
+
+\input{kernels/gen/cmp-sad16}
+
+\subsection{sw8 --- one Smith--Waterman stripe}
+
+The profile bytes are already biased into the unsigned range a saturating add expects. The stripe adds that profile into the running score and takes the unsigned maximum against the gap vector. Farrar's layout makes the cells of one stripe independent. The zero floor is the same \texttt{vmaxu} against a register of zeros. A seed hit in BLAST or minimap2 is the gather \texttt{index32}.
+
+\input{kernels/gen/cmp-sw8}
+
+\section{Harts}
 
 Scalar parcels and vector parcels share decode, the scoreboard, and writeback. The blitter, if it is a bus master, is not a second hart and does not fetch OP-V. It is a peripheral with a pointer, a count, and a small arithmetic step, programmed by stores to its registers. New software may ignore it and use SVM-16 instead. Old software that you have translated may still program it. Keeping both is how the machine remains Amiga-compatible while the new kernels are ordinary RVV.
 

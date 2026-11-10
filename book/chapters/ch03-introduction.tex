@@ -1,0 +1,192 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+This chapter is the machine, before any board. The later chapters fix the opcodes, the profiles, and the Bluespec parameters. What belongs here is the shape of the data, the units that move it, and the single adaptor that lets one vector unit sit in front of more than one instruction set.
+
+\section{How to read this book}
+
+Three paths through the same text.
+
+\begin{description}[leftmargin=1.5em,style=nextline]
+  \item[Retro board.] Read this chapter through the adaptor, then the host section of BX-8 or BX-16 or BX-32, then the kernel binaries. The softcore is yours. The book specifies the port.
+  \item[Register transfer.] Read the state chapter, the instruction classes, the FPGA chapter, and the Bluespec chapter. The adaptor appears there as an interface with the same fields as the table below.
+  \item[Comparison.] Read the kernel tables. The columns are RVV, Intel, and ARM. A label shares its row with the instruction at that address. Skip the opcode matrices.
+\end{description}
+
+The scalable object is the adaptor, not a new story for each console. The hosts in this edition are the ASCII R800, the Motorola 68000 of the Amiga contract, the Hitachi SH-2 and SH-4, and three MIPS cores: the R3000A, the NEC VR4300, and the Toshiba Emotion Engine. The 68000 is in the list because BX-16's peripheral contract is the Amiga. The others are Japanese designs or MIPS implementations those designs use.
+
+NES, Master System, TurboGrafx-16, Super Famicom, 3DO, Xbox, GameCube, Wii, and the later x86, PowerPC, and ARM consoles are outside this edition. The Hudson HuC6280 is a 6502 derivative and is outside with them. The NEC V810, used by the Virtual Boy and the PC-FX, mixes 16-bit and 32-bit instructions; drawing its adaptor record is an exercise, and this edition does not freeze an escape for it.
+
+\section{Three shapes of data}
+
+A BX machine holds scalars, vectors, and, when you ask for it, a matrix step.
+
+A scalar is one XLEN-wide register. XLEN is 32 on BX-8, BX-16, and BX-32, and 64 on BX-64, BX-128, and BX-512. Those files are Chapters~\ref{ch:rv32} and~\ref{ch:rv64}. Chapter~\ref{ch:rv128} widens that register to 128 bits, and that base sits outside these profiles. The scalar file is the address file and the loop file. A vector is one of thirty-two registers, each VLEN bits wide, interpreted as elements of the selected width. A matrix is column-major memory, as Section~\ref{sec:blas} stores it. Xsvm can offer a four-by-four and a three-element cross product as custom opcodes. Xsvm is off unless the elaboration asks for it. The profiles themselves contain no matrix instruction.
+
+SVM is that split. The S is the hart, or the host softcore. The V is the RVV profile. The M is optional.
+
+\section{The blocks}
+
+Four blocks do the work.
+
+The scalar ALU operates on one XLEN register at a time. On BX-8 and BX-16 it is narrower than XLEN and takes several bus beats to finish a word. The architectural result is the RV32 result.
+
+The vector functional units operate on elements. An integer unit covers add, subtract, logic, shift, compare, and the saturating forms the profile requires. A floating-point unit appears at BX-32. A mask unit writes and consumes \texttt{v0}. A permute unit, where the profile has slides or gathers, moves elements inside the register file.
+
+The vector load/store unit moves elements between the vector file and memory. Unit stride is required on every machine. Constant stride begins at BX-16. Indexed access begins at BX-32.
+
+The address of a vector load is a scalar register. There is no separate vector address file. The host chapters use that fact: the R800 pair, the 68000 address register, the SuperH register, or the MIPS register is wired to the same base-address port the RV \texttt{rs1} field already names.
+
+\section{Four streams}
+
+Flynn's four labels classify a machine by how many instruction streams and data streams it has in flight.
+
+\begin{center}
+\begin{tabular}{@{}llp{6.4cm}@{}}
+\toprule
+Label & Streams & Where BX puts it \\
+\midrule
+SISD & one instruction, one datum & the scalar ALU \\
+MISD & several instructions, one datum & not built \\
+SIMD & one instruction, several data & the vector unit \\
+MIMD & several instructions, several data & a second hart, where the profile allows one \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+MISD is in the table so the classification is complete. BX does not build a pipeline in which several different instructions share one datum. SIMD is the label that contains both a fixed-width SIMD unit and a vector unit. The difference that matters for this book sits inside that one label: a fixed-width unit names its width in the instruction, and a vector unit names its width in a register that software sets. MIMD, when you build it, is the second hart of BX-32 or BX-64. It is a second scalar core with the same vector profile, not a second encoding.
+
+\section{Fixed width and scalable length}
+
+MMX, SSE, AVX, and AVX-512 are successive Intel register widths: 64, 128, 256, and 512 bits. Each width added mnemonics. NEON is a 128-bit ARM file. SVE is an ARM file whose length the implementation chooses and software discovers. SME adds a matrix tile and an outer-product instruction; it is the matrix analogue, and the kernels in this book are one-dimensional, so SME appears in a gap cell when a matrix instruction is the thing a reader might confuse with the kernel.
+
+RVV keeps one encoding. \texttt{vtype} selects the element width and the register grouping. \texttt{vsetvl} returns how many elements fit. The same \texttt{vle8.v} runs on SVM-8 and on a BX-64 image. What changes is the largest element the machine accepts.
+
+RVV 1.0 element widths stop at 64 bits. A 128-bit element is not an opcode you can hunt for in this book. VLEN on BX-16 is already 128 bits, and BX-32 and BX-64 may elaborate 256 or 512. That number is the register length, not the element length.
+
+The per-kernel tables in the machine chapters are the comparison. This section only fixes the rule: on those ISAs the width is in the mnemonic, and here the width is in \texttt{vtype}.
+
+\section{Register windows}
+
+The scalar file is a flat RV file, thirty-two names, all visible to every call. Register windows, in the sense of a sliding set of names that a call instruction rotates, are not part of BX and not part of RVV.
+
+The only overlap of architectural names is the grouping of vector registers described later in this chapter. Grouping changes how many names a single instruction reads. It does not save and restore a window on a call. The host softcores follow their own calling conventions. The adaptor does not add a window file in front of them.
+
+\section{Arbitrary length}
+
+\texttt{VL} is the number of elements the current instruction touches. \texttt{VLMAX} is the most elements one register group can hold at the current element width and grouping. Software that has more elements than \texttt{VLMAX} asks again. That loop is strip mining.
+
+On BX-8, VLEN is 32 and SEW is 8, so \texttt{VLMAX} is 4. A copy of 10 bytes runs as three strips: 4, 4, and 2.
+
+\input{kernels/gen/cmp-copy8}
+
+\texttt{vsetvli} writes the granted length into \texttt{t0}. The loads and stores use that length. The pointer advances by bytes, which at SEW 8 is the same number. The same loop at SEW 16, 32, or 64 changes the configuration immediate, the load and store mnemonic, and the shift that turns an element count into a byte count. The control flow stays. An Intel transcription of the same ten bytes changes register class and mnemonic when the register grows from 64 bits to 128. The kernel tables show that change on each routine.
+
+The strips in this book walk forward, from low address to high. A reverse walk, which handles the short strip first and then steps down, is legal RVV and is not what these kernels do.
+
+The table above is the acceptance kernel \texttt{copy8} of Chapter~\ref{ch:bx8}. The hex and the binary path sit under that table.
+
+\section{Arrays and vectors}
+
+An array processor replicates the work in space. Four processing elements, one instruction broadcast, four elements retired in the same cycle because four elements of hardware exist.
+
+A vector processor can do the same work by streaming elements through a pipeline. The instruction says ``these \texttt{VL} elements.'' The hardware retires them over time, a lane group per cycle. Chaining, in the next section, is what lets the next instruction start on the first group before the last group of the previous instruction has retired.
+
+BX builds both cuts, and they are parameters. The number of lanes is the spatial cut. The beats a lane takes are the temporal cut. One lane on BX-8 retires a four-element register in four cycles. Four lanes retire it in one. Both pass the same architectural tests.
+
+Locality follows the cut. Each lane owns a slice of every vector register, so an element and its neighbours in that slice stay next to the ALU that consumes them. The FPGA chapter gives the slice width and the port count. The rule here is only that the slice is the unit of wiring.
+
+\section{Chaining}
+
+Chaining means a consumer instruction starts on the first element group as soon as that group is valid, while the producer is still writing later groups. The apparent latency of a load followed by an add is the latency of one group, not the latency of the whole vector.
+
+Build chaining from BX-32 upward, where a floating-point pipeline is several cycles deep and the kernels are long enough to fill it. On BX-8 a four-element register finishes before a chain controller pays for itself. BX-16 may overlap a load and an arithmetic instruction only when the load's destination is not a source of the arithmetic instruction. That overlap is a scoreboard on three register numbers. It is the in-order rule, not a chain file.
+
+\section{Static and dynamic instructions}
+
+\texttt{copy8} has seven instructions in the body: configure, load, store, two address adds, the length subtract, and the branch. Ten bytes at \texttt{VLMAX} 4 take three trips through that body, twenty-one dynamic instructions, plus the opening branch and the return.
+
+A scalar byte copy on the same hart is a load, a store, two pointer adds, a count add, and a branch, six instructions per byte. Ten bytes are sixty dynamic instructions in the body. The vector form wins because one static load describes every element of the strip. The fetch path of a small FPGA stays narrow. The work is inside the vector instruction, in the lane, not in the decoder.
+
+The same arithmetic is why a host with an 8-bit or 16-bit instruction word can still justify a 32-bit OP-V parcel. The parcel is wide. It is rare. The bytes it moves are the scanline.
+
+\section{Ports, stalls, and issue}
+
+A vector-vector arithmetic instruction reads two register-file slices and writes one. A masked instruction also reads the mask bit for that element. That is the port picture the first FPGA image has to close timing on: two reads, one write, and a narrow mask read. The FPGA chapter turns the picture into a lane.
+
+A stall, in this book, is a cycle the vector unit does not receive a bus grant because video or audio owns the bus. The element state does not change on that cycle. The instruction remains the current instruction. BX-8 and BX-16 are built so that this wait is the compatible behaviour: the picture does not tear because a copy held the bus.
+
+Issue is in order. BX-8 and BX-16 hold one vector arithmetic instruction in the unit at a time. A later instruction waits until the register numbers it needs are free. Out-of-order issue, with a rename file and a reorder buffer, is a different machine. These cores do not build it. Precise exceptions stay the ones the profiles already name: an illegal SEW sets \texttt{vill} and the following vector instruction traps, and a faulting load reports the element in \texttt{vstart} on the machines that implement that register.
+
+\section{Grouping vector registers}
+
+LMUL is the number of architectural registers one instruction treats as a single wider register. The thirty-two names stay. A grouped instruction occupies a contiguous, aligned run of them.
+
+SVM-8 fixes LMUL at 1. Four 8-bit elements fill the 32-bit register, and no instruction in that profile needs a second register to hold a result.
+
+SVM-16 allows a group only for a widening destination. A 16-bit multiply that keeps the full product writes 32-bit elements, and those elements take two registers. The narrowing shift that brings a pixel back reads that group. The source registers of the multiply stay LMUL 1.
+
+From BX-32 the ratified rules apply, including the groupings Zve32f permits. The profile card is the list of what an elaboration actually enables. Software that needs a group asks for it in \texttt{vsetvl}. An illegal group sets \texttt{vill}.
+
+\section{Instruction classes}
+
+The encoding is one 32-bit parcel, major opcode OP-V for arithmetic and configuration, and the vector load and store opcodes for memory. The classes the rest of the book implements are these.
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Class & First machine \\
+\midrule
+Configuration (\texttt{vsetvl}, \texttt{vsetvli}) & BX-8 \\
+Unit-stride load and store & BX-8 \\
+Integer arithmetic, compare, splat & BX-8 \\
+Mask logicals & BX-8 \\
+Constant-stride load and store & BX-16 \\
+Widening multiply, narrowing clip & BX-16 \\
+Reduction, slide by one & BX-16 \\
+Indexed load and store & BX-32 \\
+Floating-point arithmetic and fused multiply-add & BX-32 \\
+Double-precision forms & BX-64 \\
+Custom geometry (Xsvm) & optional, never part of a claim \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The bit fields are in the instruction chapter and in the opcode maps of the machines. This list is the taxonomy those maps are sorted by.
+
+\section{The host adaptor}
+
+The vector unit consumes one 32-bit OP-V parcel on every host. The adaptor recognises an escape in the host instruction stream, assembles that parcel, and presents it on the same instruction port the RV32 hart uses. There is no second vector encoding. There is no R800, 68000, SuperH, or MIPS pipeline in this book. You bring a softcore that already fetches that instruction set. Old ROMs keep working when they never execute the escape, and when the scalar core really is that CPU.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lp{2.3cm}lp{3.4cm}p{3.6cm}@{}}
+\toprule
+Host & Escape & Endian & \texttt{rs1} selects & What stays \\
+\midrule
+R800 & \texttt{ED 00} & little & BC DE HL IX IY SP & MULUB, MULUW \\
+68000 & \texttt{F400} & big & D0--D7, A0--A7 & A-line, CpID 1 \\
+SH-2 & \texttt{0000} & big & R0--R15 & the rest of the map \\
+SH-4 & \texttt{0000} & little & R0--R15 & \texttt{Fxxx}, including FTRV \\
+R3000A & \texttt{4C000000} & little & R0--R31 & COP2, the GTE \\
+VR4300 & \texttt{4C000000} & big & R0--R31 & COP1, the FPU \\
+EE & \texttt{4C000000} & little & low 32 bits of the GPR & COP2, which is VU0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\texttt{F400} is an F-line word with coprocessor id 2. \texttt{4C000000} is a COP3 word with every other field zero. The MIPS adaptor claims that word on the instruction bus. With coprocessor 3 disabled, the host would raise Coprocessor Unusable; the adaptor takes the parcel first and the exception does not fire.
+
+The parcel after the escape is the entire next instruction word. On a little-endian host the low half travels first. On a big-endian host the high half travels first. SH-2 and SH-4 share the escape halfword and differ in that order. Saturn code is big-endian. Dreamcast code is little-endian. Mixing the two framed binaries will execute a byte-swapped instruction.
+
+\texttt{rs1} and \texttt{rs2} in a host image are host indices, not RV ABI numbers. The checked-in harness files still contain the RV numbers, with the escape inserted in front of every parcel, scalar parcels included. A ROM re-assembles the address fields and writes the branch in the host instruction set. The folder README says which file is which.
+
+The adaptor stalls the host in order until the SVM accepts the parcel. An illegal opcode or an illegal SEW becomes the host's illegal-instruction exception, or an F-line exception on the 68000. \texttt{vill} itself does not change.
+
+The vector register file is only the SVM file. Host general registers are addresses and scalar results, never vector elements.
+
+Leave these alone. The A-line trap is how Amiga libraries are called. The SH-4 \texttt{Fxxx} space is the existing FPU and graphic unit. COP2 on the R3000A is the GTE, and COP2 on the Emotion Engine is VU0. SVM-8 and SVM-16 do not set \texttt{misa}.V. An empty \texttt{ED} slot is not part of the MSX standard; \texttt{ED 00} is the escape because the published map leaves it unused, and because MSX padding is the single byte \texttt{00}. SH-4 on BX-16 is an integer injection. ELEN is 16. A Dreamcast-class floating-point transform uses the same escape in front of BX-32.
+
+The cost of the escape is the host's fetch of the prefix and of the parcel. The vector instruction then takes the same lane cycles it takes on the RV elaboration.
+
+The bytes of every acceptance kernel are in \path{kernels/}, produced by \path{kernels/encode_kernels.py}. The hex in the machine chapters is that output.

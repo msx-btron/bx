@@ -1,0 +1,44 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: gemv32}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = columns, a1 = A, a2 = x, a3 = y. rows = VLMAX, lda = VLMAX}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{02050863} & \texttt{gemv32: beqz a0, end} \\
+RVV & \texttt{0004} & \texttt{002072D7} & \texttt{vsetvli t0, zero, e32, m1, tu, mu} \\
+RVV & \texttt{0008} & \texttt{00229313} & \texttt{slli t1, t0, 2} \\
+RVV & \texttt{000C} & \texttt{0206E407} & \texttt{vle32.v v8, (a3)} \\
+RVV & \texttt{0010} & \texttt{0205E087} & \texttt{loop: vle32.v v1, (a1)} \\
+RVV & \texttt{0014} & \texttt{00062007} & \texttt{flw ft0, 0(a2)} \\
+RVV & \texttt{0018} & \texttt{B2105457} & \texttt{vfmacc.vf v8, ft0, v1} \\
+RVV & \texttt{001C} & \texttt{006585B3} & \texttt{add a1, a1, t1} \\
+RVV & \texttt{0020} & \texttt{00460613} & \texttt{addi a2, a2, 4} \\
+RVV & \texttt{0024} & \texttt{FFF50513} & \texttt{addi a0, a0, -1} \\
+RVV & \texttt{0028} & \texttt{FE0514E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{002C} & \texttt{0206E427} & \texttt{vse32.v v8, (a3)} \\
+RVV & \texttt{0030} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{C5F81006} & \texttt{gemv32: vmovups xmm0, [rsi]} \\
+Intel & \texttt{0004} & \texttt{C4E279180A} & \texttt{vbroadcastss xmm1, dword ptr [rdx]} \\
+Intel & \texttt{0009} & \texttt{C4E279B8E1} & \texttt{vfmadd231ps xmm4, xmm0, xmm1} \\
+Intel & \texttt{000E} & \texttt{4883C610} & \texttt{add rsi, 16} \\
+Intel & \texttt{0012} & \texttt{4883C204} & \texttt{add rdx, 4} \\
+Intel & \texttt{0016} & \texttt{4883E901} & \texttt{sub rcx, 1} \\
+Intel & \texttt{001A} & \texttt{75E4} & \texttt{jnz gemv32} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4CDF7820} & \texttt{gemv32: ld1 \{v0.4s\}, [x1], \#16} \\
+ARM & \texttt{0004} & \texttt{4DDFC841} & \texttt{ld1r \{v1.4s\}, [x2], \#4} \\
+ARM & \texttt{0008} & \texttt{4E21CC04} & \texttt{fmla v4.4s, v0.4s, v1.4s} \\
+ARM & \texttt{000C} & \texttt{F1000400} & \texttt{subs x0, x0, \#1} \\
+ARM & \texttt{0010} & \texttt{54FFFF81} & \texttt{b.ne gemv32} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx32/gemv32.sew32.lmul1.tu.mu.vlen128.xlen32.le.bin}\par

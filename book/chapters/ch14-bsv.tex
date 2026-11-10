@@ -1,9 +1,9 @@
-\chapter{One Bluespec Description, Four Profiles}
+\chapter{One Bluespec Description}
 \label{ch:bsv}
 
 \section{Complete opcode contract}
 
-After the four machines the architectural rectangle is fixed. The table is the single entry point for “which opcodes exist on which core”.
+After the machines the architectural rectangle is fixed. The table is the single entry point for “which opcodes exist on which core”.
 
 \begin{center}
 \small
@@ -36,11 +36,26 @@ Tail policy & und. & und. & und. & und. \\
 \end{tabular}
 \end{center}
 
-The bit-field diagrams that appear in Chapters~\ref{ch:bx8}--\ref{ch:bx64} are the concrete encodings for each class. The tables below list every mnemonic the corresponding profile must implement. The Bluespec package that follows elaborates exactly the cells marked “yes” (or “opt.” when the corresponding parameter is true) and turns every other cell into an illegal-instruction path.
+BX-128 and BX-512 use the Zve64d/V column. The pin is the register length.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & BX-128 & BX-512 \\
+\midrule
+VLEN & 128 & 512 \\
+VRF, bytes & 512 & 2048 \\
+VLMAX at SEW 64 & 2 & 8 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The bit-field diagrams that appear in Chapters~\ref{ch:bx8}--\ref{ch:bx512} are the concrete encodings for each class. The tables below list every mnemonic the corresponding profile must implement. The Bluespec package that follows elaborates exactly the cells marked “yes” (or “opt.” when the corresponding parameter is true) and turns every other cell into an illegal-instruction path.
 
 \section{Aggregated opcode tables (ISA)}
 
-Canonical bit layouts are shown once, width-aligned. Profile columns then list only the mnemonics (and the few constants that differ). Detailed per-machine diagrams remain in Chapters~\ref{ch:bx8}--\ref{ch:bx64}; this section is the compact academic summary.
+Canonical bit layouts are shown once, width-aligned. Profile columns then list only the mnemonics (and the few constants that differ). Detailed per-machine diagrams remain in Chapters~\ref{ch:bx8}--\ref{ch:bx512}; this section is the compact academic summary.
 
 \subsection{Canonical layouts (32-bit, two equal-width half-words)}
 
@@ -287,6 +302,23 @@ interface VectorIssue;
   method Bool ready;
 endinterface
 
+typedef struct {
+  Bit#(8)  escape0;     // first byte or low byte of the escape
+  Bit#(8)  escape1;     // second byte; 0 when the escape is a halfword of zero
+  Bit#(32) escapeWord;  // full word when the host instruction is 32 bits
+  Bool     bigEndian;   // high half of the parcel travels first
+  Integer  indexBits;   // 3 on R800, 4 on 68000 and SuperH, 5 on MIPS
+  Bit#(4)  excKind;     // 0 illegal, 1 F-line, 2 coprocessor-unusable claimed
+} HostAdaptor deriving (Bits, Eq);
+
+interface HostFetch;
+  method Action escape(Bit#(32) word);
+  method Action parcel(Bit#(32) opv);
+  method ActionValue#(Bit#(5)) mapRs(Bit#(5) rs);
+  method Bool stall;
+  method Action illegal;
+endinterface
+
 interface Lane;
   method Action enq(Elem a, Elem b, Opcode op, Bool mask);
   method ActionValue#(Elem) deq;
@@ -294,6 +326,8 @@ endinterface
 \end{lstlisting}
 
 The issue method is called from the hart's execute stage for OP-V parcels. \texttt{ready} is false while an in-order vector instruction occupies the unit. Loads use a third interface, \texttt{VecMem}, whose \texttt{beat} method is granted by the same arbiter as the video master on BX-8 and BX-16.
+
+\texttt{HostFetch} is the same port with a foreign instruction stream in front of it. \texttt{escape} recognises the word, \texttt{parcel} delivers the following OP-V word after the endian assembly named by \texttt{HostAdaptor}, and \texttt{mapRs} turns the \texttt{rs1} field into a host register index. \texttt{stall} holds the softcore until \texttt{VectorIssue.ready} is true. The record in \texttt{HostAdaptor} is the table in Chapter~\ref{ch:intro}: R800, 68000, SH-2, SH-4, R3000A, VR4300, Emotion Engine. An RV elaboration does not instantiate \texttt{HostFetch}.
 
 Scalar writeback of \texttt{vsetvl}'s destination register is a method on the hart, not a side path. The vector unit returns the granted \texttt{vl} in the result structure of \texttt{req}.
 

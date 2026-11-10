@@ -11,4 +11,8 @@
   \item Implement \texttt{vstart} for a fault in the middle of a unit-stride load on BX-64. Show a restart that retires each element once.
   \item Draw the scoreboard for three vector register numbers and a pending load. List the pairs that may overlap and the pairs that must not.
   \item Write the \texttt{paramsOk} function and a table of ten illegal parameter records that must not elaborate, including FP32 with ELEN 16 and \texttt{claimV} with VLEN 64.
+  \item The published R800 map leaves \texttt{ED 00} through \texttt{ED 3F} empty, and also \texttt{ED 80} through \texttt{ED 9F}. Say why this book freezes \texttt{ED 00}, and name one other empty slot you would refuse because a multiply or a block move already owns its row.
+  \item Name the Amiga software path that executes an A-line word, and say what a board does to existing libraries if the adaptor claims that word.
+  \item Rewrite \texttt{copy8} at SEW 16. List every line that changes in the RVV source. List what changes in the Intel column of the kernel table when the register grows from \texttt{mm} to \texttt{xmm}.
+  \item Draw the adaptor record for the NEC V810: escape, parcel endian, which registers \texttt{rs1} may name, and which exception fires. Do not invent a bit pattern you have not checked against the V810 opcode map. The record is the exercise. A frozen escape is not.
 \end{enumerate}

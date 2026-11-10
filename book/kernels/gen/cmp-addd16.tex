@@ -1,0 +1,35 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: addd16}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = src, a1 = dst. Low 64 bits plus 16, then sign-extend.}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RV128 & \texttt{0000} & \texttt{0005228F} & \texttt{addd16: lq t0, 0(a0)} \\
+RV128 & \texttt{0004} & \texttt{010282DB} & \texttt{addid t0, t0, 16} \\
+RV128 & \texttt{0008} & \texttt{0055C023} & \texttt{sq t0, 0(a1)} \\
+RV128 & \texttt{000C} & \texttt{00008067} & \texttt{ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{488B06} & \texttt{addd16: mov rax, qword ptr [rsi]} \\
+Intel & \texttt{0003} & \texttt{4883C010} & \texttt{add rax, 16} \\
+Intel & \texttt{0007} & \texttt{488907} & \texttt{mov qword ptr [rdi], rax} \\
+Intel & \texttt{000A} & \texttt{48C1F83F} & \texttt{sar rax, 63} \\
+Intel & \texttt{000E} & \texttt{48894708} & \texttt{mov qword ptr [rdi+8], rax} \\
+Intel & \texttt{0012} & \texttt{C3} & \texttt{ret} \\
+\midrule
+ARM & \texttt{0000} & \texttt{F9400002} & \texttt{addd16: ldr x2, [x0]} \\
+ARM & \texttt{0004} & \texttt{91004042} & \texttt{add x2, x2, \#16} \\
+ARM & \texttt{0008} & \texttt{F9000022} & \texttt{str x2, [x1]} \\
+ARM & \texttt{000C} & \texttt{937FFC43} & \texttt{asr x3, x2, \#63} \\
+ARM & \texttt{0010} & \texttt{F9000423} & \texttt{str x3, [x1, \#8]} \\
+ARM & \texttt{0014} & \texttt{D65F03C0} & \texttt{ret} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/rv128/addd16.sew64.lmul1.tu.mu.vlen0.xlen128.le.bin}\par

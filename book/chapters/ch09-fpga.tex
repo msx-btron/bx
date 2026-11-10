@@ -1,34 +1,126 @@
 \chapter{Lanes, Register Files, and Memory on an FPGA}
 \label{ch:fpga}
 
-\section{How many lanes}
+\section{Three widths}
 
-A lane is a slice of the vector register file plus the functional units that operate on one element per cycle. The number of lanes does not change the architecture. It changes how many elements retire per cycle.
+These machines have two register files. XLEN sizes the integer file and the address. VLEN sizes one vector register. SEW is the element width software selects inside that vector register. ELEN is the widest SEW the implementation accepts. At LMUL 1, VLMAX is VLEN/SEW.
 
 \begin{center}
-\begin{tabular}{@{}lccp{5.5cm}@{}}
+\begin{tabular}{@{}llp{6.4cm}@{}}
 \toprule
-Machine & VLEN & Suggested lanes & Reason \\
+Name & Where it lives & What it counts \\
 \midrule
-BX-8  & 32  & 1 or 4 & Four eight-bit lanes finish a register in one cycle. \\
-BX-16 & 128 & 4 & Four sixteen-bit lanes match a modest DSP column. \\
-BX-32 & 128 & 4 & One FP32 unit per lane is already a large board image. \\
-BX-64 & 128 or 256 & 2 or 4 & FP64 is the expensive unit; fewer lanes first. \\
+XLEN & integer register & Bits of one GPR, and of an address. \\
+VLEN & vector register & Bits of one of the thirty-two vector registers. \\
+ELEN & implementation & Widest legal SEW. \\
+SEW & \texttt{vtype} & Bits of one element, chosen by software. \\
+VLMAX & derived & Elements in one register at LMUL 1. \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Start with one lane on the first elaboration of each profile. Widen after the tests in Chapter~\ref{ch:tests} pass. A parameter \texttt{NLANES} that must divide VLEN/SEW for every legal SEW is the usual constraint. On SVM-16, VLEN is 128 and SEW may be 8, so eight elements of eight bits fill a register: \texttt{NLANES} should divide 8. Four is the comfortable choice.
+BX-128 pins VLEN at 128. BX-512 pins VLEN at 512. Both keep ELEN at 64, so the legal element widths are 8, 16, 32, and 64. SEW 128 traps on BX-128. SEW 512 traps on BX-512. The default hart on both pins is RV64, so XLEN is 64. Chapter~\ref{ch:rv128} is an RV128I hart, XLEN 128, with that same vector unit attached. The vector file stays the size the pin names.
+
+\begin{center}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+ & \multicolumn{2}{c}{RV64 hart} & \multicolumn{2}{c}{RV128 hart} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+ & BX-128 & BX-512 & BX-128 & BX-512 \\
+\midrule
+GPR, bits & $32\times 64$ & $32\times 64$ & $32\times 128$ & $32\times 128$ \\
+GPR, bytes & 256 & 256 & 512 & 512 \\
+Vector register, bits & $32\times 128$ & $32\times 512$ & $32\times 128$ & $32\times 512$ \\
+VRF, bytes & 512 & 2048 & 512 & 2048 \\
+VLMAX at SEW 32 & 4 & 16 & 4 & 16 \\
+VLMAX at SEW 64 & 2 & 8 & 2 & 8 \\
+Legal lane counts & 1, 2 & 1, 2, 4, 8 & 1, 2 & 1, 2, 4, 8 \\
+Address adder, bits & 64 & 64 & 128 & 128 \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{center}
+
+Chapters~\ref{ch:bx128} and~\ref{ch:bx512} build the RV64 columns, on the hart of Chapter~\ref{ch:rv64}. The two RV128 columns are the same vector unit beside the integer base of Chapter~\ref{ch:rv128}. The OP-V parcel is 32 bits on every row. \texttt{vsetvli} has no XLEN field and no VLEN field. \texttt{vsetvli t0, zero, e32, m1, tu, mu} is the word \texttt{002072D7} on all four compositions. \texttt{t0} receives 4 when VLEN is 128 and 16 when VLEN is 512.
+
+\texttt{vmv.x.s} copies element 0 into a GPR. When SEW is narrower than XLEN, the value is sign-extended to XLEN. On RV64 a SEW-32 element fills bits 63:32 with the sign. On RV128 that element sign-extends through bit 127, and a SEW-64 element sign-extends through bit 127. \texttt{vmv.s.x} copies the low SEW bits of the GPR into element 0 and leaves the bits above SEW unused. A vector-scalar integer operation reads those same low bits. The floating-point scalar comes from an F register. RV128I leaves that file at 32 or 64 bits, so the floating-point scalar port stays the width of FLEN.
+
+\texttt{vle64.v} with \texttt{vl} equal to 2 writes 16 bytes into one BX-128 vector register. \texttt{lq} writes 16 bytes into one RV128 GPR. The data port in Chapters~\ref{ch:bx128} and~\ref{ch:bx512} is 64 bits, so both moves take two beats. The bytes arrive in different files.
+
+\section{The Intel register ladder}
+
+Intel widened the vector register in four steps and, in long mode, left the general-purpose register at 64 bits. That is an RV64 hart beside a pinned vector file. The width column is VLEN. The opcode names the element width, which is SEW. The source for the register pictures is the Intel manual in the references.
+
+\begin{center}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llrrrl@{}}
+\toprule
+Extension & Registers & Width & At SEW 32 & At SEW 64 & GPR \\
+\midrule
+MMX & 8 \texttt{mm} & 64 & 2 & --- & 32 or 64 \\
+SSE, SSE2 & 16 \texttt{xmm} & 128 & 4 & 2 & 64 \\
+AVX, AVX2 & 16 \texttt{ymm} & 256 & 8 & 4 & 64 \\
+AVX-512 & 32 \texttt{zmm} & 512 & 16 & 8 & 64 \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{center}
+
+A 32-bit SSE program has eight \texttt{xmm} registers. Long mode has sixteen, and that is the count the kernel tables are assembled against. AVX-512 raises the architectural count to thirty-two \texttt{zmm} registers, which is the number of vector registers on every machine in this book, including BX-8. MMX stops at 32-bit elements. \texttt{paddq} is an SSE2 instruction on \texttt{xmm}. SSE proper is four packed singles. SSE2 adds the integer element widths and two packed doubles. AVX2 is what carries the integer element widths up to \texttt{ymm}. AVX itself is the floating-point widening.
+
+One BX-128 register at SEW 32 and \texttt{vl}=4 is four packed singles, an \texttt{xmm}. \texttt{gemm32} is that width. The same register at SEW 64 and \texttt{vl}=2 is two packed doubles, and \texttt{gemm64} is that width. One BX-512 register at SEW 32 and \texttt{vl}=16 is sixteen packed singles, a \texttt{zmm}. \texttt{wide32} is that update, and its Intel column uses \texttt{zmm}. \texttt{wide64} is eight packed doubles. A BX-64 image may set VLEN to 256, which is a \texttt{ymm}. BX-128 is pinned at 128, so its architectural register is the \texttt{xmm}, and BX-512 is the \texttt{zmm}.
+
+MMX is eight architectural registers of 64 bits. Two lanes of BX-128 also cut the vector file into 64-bit slices. The lane is a slice of one 128-bit register. \texttt{mm0} is the register the instruction names.
+
+AVX-512 adds eight mask registers, \texttt{k0} through \texttt{k7}, each 64 bits. RVV keeps the mask in \texttt{v0}, one bit per element. On BX-512 at SEW 8, VLMAX is 64, so the live mask is 64 bits wide and still resides in \texttt{v0}. An \texttt{xmm} instruction writes the whole register. RVV writes \texttt{vl} elements and keeps the tail under the tail policy. \texttt{ymm0} overlaps \texttt{xmm0}: the low 128 bits are one register viewed at two widths. An LMUL group names distinct registers. The bits of \texttt{v0} and the bits of \texttt{v2} do not overlap.
+
+x86-64 widened the general-purpose register from 32 bits to 64 and left \texttt{xmm} at 128. That change is XLEN. AVX widened the vector register and left \texttt{rax} at 64. That change is VLEN. RV128I widens the general-purpose register to 128 and leaves the vector pin where Chapters~\ref{ch:bx128} and~\ref{ch:bx512} set it.
+
+\section{How many lanes}
+\label{sec:lanes}
+
+A lane is a slice of the vector register file plus the functional units that operate on one element group per cycle. The number of lanes does not change the architecture. It changes how many elements retire per cycle. The same OP-V program is the acceptance test for one lane and for several. The Hart column is the integer file the row is built beside: RV32 in Chapter~\ref{ch:rv32}, RV64 in Chapter~\ref{ch:rv64}, and RV128 in Chapter~\ref{ch:rv128}.
+
+\begin{center}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lllcp{5.4cm}@{}}
+\toprule
+Machine & Hart & VLEN & Suggested lanes & Reason \\
+\midrule
+BX-8   & RV32  & 32  & 1 or 4 & Four eight-bit lanes finish a register in one cycle. \\
+BX-16  & RV32  & 128 & 4      & Four sixteen-bit lanes match a modest DSP column. \\
+BX-32  & RV32  & 128 & 4      & One FP32 unit per lane is already a large board image. \\
+BX-64  & RV64  & 128 & 1 or 2 & SEW 64 holds two elements, so four lanes do not divide. \\
+BX-64  & RV64  & 256 & 2 or 4 & Four lanes are legal once a register holds four doubles. \\
+BX-128 & RV64  & 128 & 2      & Each lane holds 64 bits: one FP64, or two FP32. \\
+BX-128 & RV128 & 128 & 2      & Same lanes. The address adder and the GPR are 128 bits. \\
+BX-512 & RV64  & 512 & 4      & Each lane holds 128 bits and retires two doubles. \\
+BX-512 & RV128 & 512 & 4      & Same lanes. The address adder and the GPR are 128 bits. \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{center}
+
+Start with one lane on the first elaboration of each profile. Widen after the tests in Chapter~\ref{ch:tests} pass. \texttt{NLANES} must divide VLEN/SEW for every legal SEW, because each lane owns a fixed slice of bits and that slice must contain a whole number of elements at every SEW. On SVM-16, VLEN is 128 and the narrowest VLMAX is 8, so \texttt{NLANES} divides 8. Four is the comfortable choice.
+
+On BX-128 the narrowest VLMAX is 2, so the legal counts are 1 and 2. Two lanes give each lane 64 bits: one FP64, two FP32, four halfwords, or eight bytes per cycle. On BX-512 the narrowest VLMAX is 8, so the legal counts are 1, 2, 4, and 8. Four is the image to build first. Eight lanes retire a register in one cycle at every legal SEW and require eight FP64 units. The RV128 rows repeat the BX-128 and BX-512 counts. Only the address adder and the GPR port grow.
 
 \section{The register file}
 
-Each lane owns a slice of every vector register. With four lanes and VLEN 128, a lane holds 32 bits of each register. Reads for a vector-vector instruction are two ports; the write back is a third. A mask read is a fourth, narrower port, or a bit collected from \texttt{v0}'s slice.
+Each lane owns a fixed slice of every vector register, the same bits at every SEW. With four lanes and VLEN 128, a lane holds 32 bits of each register. With two lanes and VLEN 128, a lane holds 64 bits. With four lanes and VLEN 512, a lane holds 128 bits. Reads for a vector-vector instruction are two ports; the write back is a third. The mask bit of element $i$ is bit $i$ of \texttt{v0}, while the element's data begins at byte $i \times \mathrm{SEW}/8$. The mask port follows the element index. It is a fourth, narrower port, or a bit collected across slices.
 
 On an FPGA, implement the file as distributed memory for SVM-8 and as block RAM for SVM-16 and above if the port requirement fits the RAM primitive. If the primitive is dual-port and you need three accesses, bank the file by element and accept a one-cycle bubble when two reads and a write collide, or replicate the file. Replication is the smaller surprise on a teaching design. State the choice in the profile card under ``microarchitecture'', not under ``architecture''. Software must not be able to tell, except by cycle count.
 
 \section{Chaining}
 
-Chaining means a consumer starts when the first element of its producer is ready, rather than when the whole vector has retired. It is worth building on BX-32 and BX-64, where floating-point latency is several cycles and kernels are long. It is not worth building on BX-8. A four-element register finishes before a chain controller pays for itself.
+Chaining means a consumer starts when the first element of its producer is ready, rather than when the whole vector has retired. It is worth building on BX-32, BX-64, BX-128, and BX-512, where floating-point latency is several cycles and kernels are long. The hart width does not remove that latency. It is not worth building on BX-8. A four-element register finishes before a chain controller pays for itself.
 
 The in-order rule for BX-8 and BX-16 is: one vector instruction in the arithmetic unit at a time, loads and arithmetic allowed to overlap only when the load target is not a source of the arithmetic instruction. Scoreboard those three register numbers. That is enough hazard logic for the first board.
 
@@ -39,6 +131,8 @@ Match the vector memory port to the bus you already have for the peripherals, no
 On the MSX-compatible machine the bus is eight bits. The vector load unit is a byte counter. On the Amiga-compatible machine the bus is sixteen bits and is shared with video and blitter masters. The vector load unit requests halfwords through the same arbiter as those masters. Do not add a private wide path from the vector file to memory on BX-16; it would no longer be the bus an Amiga-compatible board has.
 
 On BX-32 and BX-64 a dedicated wider port is appropriate, because those machines are not standing in for an eight-bit or sixteen-bit chipset. Even there, size the port to a power of two beats of the element width you care about, and measure utilisation with the fill test before widening it again.
+
+BX-128 and BX-512 keep the 64-bit data port of their board pictures. A 128-bit vector register then takes two beats, and a 512-bit register takes eight. An RV128 hart widens the address adder to 128 bits and leaves this port alone. A 128-bit data port, the wide choice Chapter~\ref{ch:rv128} allows for \texttt{lq}, retires a BX-128 register in one beat and a BX-512 register in four.
 
 \section{What to read in other people's cores}
 

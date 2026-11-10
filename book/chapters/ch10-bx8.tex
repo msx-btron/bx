@@ -3,7 +3,7 @@
 
 \section{The board-level picture}
 
-BX-8 is a single FPGA image that can replace an MSX in the narrow sense of Chapter~4. The parts a cartridge and a display see are the slot signals, the video display processor, the sound generator, the keyboard and joystick ports, and the memory map. The part that executes instructions is an RV32I hart. Its data path is eight bits. Its vector unit is SVM-8.
+BX-8 is a single FPGA image that can replace an MSX in the narrow sense of Chapter~\ref{ch:machines}. The parts a cartridge and a display see are the slot signals, the video display processor, the sound generator, the keyboard and joystick ports, and the memory map. The part that executes instructions is an RV32I hart. Its data path is eight bits. Its vector unit is SVM-8. Chapter~\ref{ch:rv32} is that integer file.
 
 A word in an integer register is still thirty-two bits. The program counter advances by four when the parcel is an ordinary instruction, because the encoding is thirty-two bits even though the data bus is not. Instruction memory may be a separate thirty-two-bit port. Data memory and I/O share the eight-bit bus with the video processor. That split is the usual way to keep fetch off the peripheral bus, and it does not change the architectural width of a load.
 
@@ -11,7 +11,9 @@ A word in an integer register is still thirty-two bits. The program counter adva
 
 Fetch reads a thirty-two-bit parcel. Decode recognises RV32I and the OP-V opcodes of SVM-8. Execute for an integer instruction runs four byte beats through an eight-bit ALU, with a carry flop between beats. Writeback commits the whole register or, on a fault, commits nothing.
 
-There is no separate Z80 or R800 pipeline. Software written for those processors runs only if you have written an interpreter or a translator in RV32I. The peripherals do not know which interpreter is running. They answer to port writes in the MSX map.
+The default image is an RV32I hart. R800 software runs on that image only if you have written an interpreter or a translator in RV32I. The peripherals do not know which program is running. They answer to port writes in the MSX map.
+
+A second elaboration sets \texttt{host = R800} and attaches SVM-8 to an R800 softcore you already have. The book specifies the adaptor, not the R800 pipeline. The escape, the register map, and the harness files are in the host section below.
 
 The multiplier, if you include the M extension, is a sequenced eight-bit multiplier, not a DSP that produces a thirty-two-bit product in one cycle. Leaving M out of the first image is acceptable. Vector byte adds cover the inner loops that would otherwise have wanted a fast scalar multiply.
 
@@ -234,72 +236,102 @@ Instruction & funct6 \\
 
 No widening, no narrowing, no stride, no indexed, no reduction, no slide, no floating-point, and no custom geometry opcodes are legal on SVM-8.
 
+\section{R800 fetch}
+
+The R800 elaboration keeps SVM-8 and replaces the RV32 fetch with an R800 softcore. The adaptor record is the one in Chapter~\ref{ch:intro}. This section fills the R800 column and the wiring.
+
+The escape is the two bytes \texttt{ED 00}. The next four bytes are one OP-V parcel, low byte first. \texttt{ED C1} and its multiples are MULUB. \texttt{ED C3}, \texttt{ED D3}, \texttt{ED E3}, and \texttt{ED F3} are MULUW. Those stay. \texttt{ED 00} is the first empty slot in the \texttt{ED} map. On a real R800 that slot behaves as a slow NOP, so a binary that used it as padding would change meaning. MSX padding is the byte \texttt{00}.
+
+\begin{center}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\texttt{rs1[2:0]} & R800 pair \\
+\midrule
+0 & BC \\
+1 & DE \\
+2 & HL \\
+3 & IX \\
+4 & IY \\
+5 & SP \\
+6, 7 & reserved, illegal \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+An address-bearing vector instruction uses the selected pair as a byte address. \texttt{vsetvl} writes \texttt{vl} into the destination pair. The vector file is \texttt{v0}--\texttt{v31} inside the SVM. An illegal parcel raises the R800 illegal-instruction exception.
+
+The harness files in \texttt{kernels/bx8/r800/} put \texttt{ED 00} in front of every RV parcel, scalar words included, and they still contain RV register numbers. A ROM uses the escape only on OP-V and writes the branch in R800 instructions. One strip of a byte copy, with \texttt{rs1} already reassembled so that 0 is BC, 1 is DE, and 2 is HL, looks like this. \texttt{BC} holds the remaining count, \texttt{HL} the source, \texttt{DE} the destination.
+
+\begin{lstlisting}
+; BC = n, HL = src, DE = dst
+    ld   a, b
+    or   c
+    ret  z
+    ; vsetvli  t-pair, BC, e8, m1, tu, mu
+    defb 0xED, 0x00, <parcel, low byte first>
+    ; vle8.v v1, (HL)
+    defb 0xED, 0x00, <parcel>
+    ; vse8.v v1, (DE)
+    defb 0xED, 0x00, <parcel>
+\end{lstlisting}
+
+The softcore stalls from the escape until the SVM accepts the parcel. Video refresh still wins the bus. The picture rule in the SVM-8 section does not change because the fetch path changed.
+
 \section{Assembler kernels that must run}
 
-These routines are the acceptance set for every BX-8 image. They use only the opcodes listed above and must produce bit-identical results to a scalar reference model.
+These routines are the acceptance set for every BX-8 image. They use only the opcodes listed above and must produce bit-identical results to a scalar reference model. The hex is the RV hart image. The R800 file next to it is the harness frame.
+
+\begin{table}[htbp]
+\centering
+\caption{Kernel analogues on this machine.}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Kernel & RVV & Intel & ARM \\
+\midrule
+fill8  & \texttt{vse8.v}   & \texttt{movdqu}   & \texttt{st1} \\
+copy8  & \texttt{vle8.v}   & \texttt{movdqu}   & \texttt{ld1} \\
+mask8  & \texttt{vmsltu.vx} & \texttt{psubusb} & \texttt{cmhi} \\
+add8   & \texttt{vsadd.vv} & \texttt{paddusb}  & \texttt{uqadd} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Where these kernels run}
+
+\begin{table}[htbp]
+\centering
+\caption{Programs that run the BX-8 kernels.}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llp{7.4cm}@{}}
+\toprule
+Kernel & Work & Where it ships \\
+\midrule
+fill8 & byte fill & C \texttt{memset}. Edge padding of a picture in FFmpeg. Silence in 8-bit PCM. A cleared tile. \\
+copy8 & byte move & C \texttt{memcpy}. Prediction copy in MPEG-2, MPEG-4, H.264, HEVC, VC-1, and AV1: x264, x265, dav1d, SVT-AV1, FFmpeg. A blitter rectangle. \\
+mask8 & threshold & A chroma-key. The predicate inside a deblocking filter. A byte kept or replaced against a limit. \\
+add8 & saturating add & The clip of a residual back into a byte. 8-bit PCM that saturates. VC-1 overlap smoothing. Intel \texttt{paddusb}. \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+
+\input{kernels/gen/cmp-note}
 
 \subsection{fill8 --- fill a region with a byte}
-\begin{lstlisting}
-# a0 = n, a1 = fill byte, a2 = dst
-fill8:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e8, m1, tu, mu
-    vmv.v.x v1, a1
-    vse8.v  v1, (a2)
-    add     a2, a2, t0
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-fill8}
 
 \subsection{copy8 --- unit-stride byte copy}
-\begin{lstlisting}
-# a0 = n, a1 = src, a2 = dst
-copy8:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e8, m1, tu, mu
-    vle8.v  v1, (a1)
-    vse8.v  v1, (a2)
-    add     a1, a1, t0
-    add     a2, a2, t0
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-copy8}
 
 \subsection{mask8 --- selective fill under a generated mask}
-\begin{lstlisting}
-# a0 = n, a1 = fill, a2 = dst, a3 = threshold
-mask8:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e8, m1, tu, mu
-    vle8.v  v1, (a2)
-    vmsltu.vx v0, v1, a3
-    vmv.v.x v2, a1
-    vse8.v  v2, (a2), v0.t
-    add     a2, a2, t0
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-mask8}
 
 \subsection{add8 --- element-wise byte add with saturation}
-\begin{lstlisting}
-# a0 = n, a1 = src0, a2 = src1, a3 = dst
-add8:
-    beqz    a0, 2f
-1:  vsetvli t0, a0, e8, m1, tu, mu
-    vle8.v  v1, (a1)
-    vle8.v  v2, (a2)
-    vsadd.vv v3, v1, v2
-    vse8.v  v3, (a3)
-    add     a1, a1, t0
-    add     a2, a2, t0
-    add     a3, a3, t0
-    sub     a0, a0, t0
-    bnez    a0, 1b
-2:  ret
-\end{lstlisting}
+\input{kernels/gen/cmp-add8}
 
 \section{What you elaborate}
 

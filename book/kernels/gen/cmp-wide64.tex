@@ -1,0 +1,74 @@
+\begin{table}[htbp]
+\centering
+\caption{Kernel comparison: wide64}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\noindent \texttt{a0 = K, a1 = A, a2 = B, a3 = C. 4 columns, stride = vl.}\par
+\vspace{0.6ex}
+\begin{tabular}{@{}l|l|l|p{7.2cm}@{}}
+\toprule
+ISA & Address & Hex & Assembly \\
+\midrule
+RVV & \texttt{0000} & \texttt{06050C63} & \texttt{wide64: beqz a0, end} \\
+RVV & \texttt{0004} & \texttt{003072D7} & \texttt{vsetvli t0, zero, e64, m1, tu, mu} \\
+RVV & \texttt{0008} & \texttt{00329313} & \texttt{slli t1, t0, 3} \\
+RVV & \texttt{000C} & \texttt{0206F407} & \texttt{vle64.v v8, (a3)} \\
+RVV & \texttt{0010} & \texttt{006682B3} & \texttt{add t0, a3, t1} \\
+RVV & \texttt{0014} & \texttt{0202F487} & \texttt{vle64.v v9, (t0)} \\
+RVV & \texttt{0018} & \texttt{006282B3} & \texttt{add t0, t0, t1} \\
+RVV & \texttt{001C} & \texttt{0202F507} & \texttt{vle64.v v10, (t0)} \\
+RVV & \texttt{0020} & \texttt{006282B3} & \texttt{add t0, t0, t1} \\
+RVV & \texttt{0024} & \texttt{0202F587} & \texttt{vle64.v v11, (t0)} \\
+RVV & \texttt{0028} & \texttt{0205F087} & \texttt{loop: vle64.v v1, (a1)} \\
+RVV & \texttt{002C} & \texttt{00063007} & \texttt{fld ft0, 0(a2)} \\
+RVV & \texttt{0030} & \texttt{B2105457} & \texttt{vfmacc.vf v8, ft0, v1} \\
+RVV & \texttt{0034} & \texttt{00863007} & \texttt{fld ft0, 8(a2)} \\
+RVV & \texttt{0038} & \texttt{B21054D7} & \texttt{vfmacc.vf v9, ft0, v1} \\
+RVV & \texttt{003C} & \texttt{01063007} & \texttt{fld ft0, 16(a2)} \\
+RVV & \texttt{0040} & \texttt{B2105557} & \texttt{vfmacc.vf v10, ft0, v1} \\
+RVV & \texttt{0044} & \texttt{01863007} & \texttt{fld ft0, 24(a2)} \\
+RVV & \texttt{0048} & \texttt{B21055D7} & \texttt{vfmacc.vf v11, ft0, v1} \\
+RVV & \texttt{004C} & \texttt{006585B3} & \texttt{add a1, a1, t1} \\
+RVV & \texttt{0050} & \texttt{02060613} & \texttt{addi a2, a2, 32} \\
+RVV & \texttt{0054} & \texttt{FFF50513} & \texttt{addi a0, a0, -1} \\
+RVV & \texttt{0058} & \texttt{FC0518E3} & \texttt{bnez a0, loop} \\
+RVV & \texttt{005C} & \texttt{0206F427} & \texttt{vse64.v v8, (a3)} \\
+RVV & \texttt{0060} & \texttt{006682B3} & \texttt{add t0, a3, t1} \\
+RVV & \texttt{0064} & \texttt{0202F4A7} & \texttt{vse64.v v9, (t0)} \\
+RVV & \texttt{0068} & \texttt{006282B3} & \texttt{add t0, t0, t1} \\
+RVV & \texttt{006C} & \texttt{0202F527} & \texttt{vse64.v v10, (t0)} \\
+RVV & \texttt{0070} & \texttt{006282B3} & \texttt{add t0, t0, t1} \\
+RVV & \texttt{0074} & \texttt{0202F5A7} & \texttt{vse64.v v11, (t0)} \\
+RVV & \texttt{0078} & \texttt{00008067} & \texttt{end: ret} \\
+\midrule
+Intel & \texttt{0000} & \texttt{62F1FD481006} & \texttt{wide64: vmovupd zmm0, [rsi]} \\
+Intel & \texttt{0006} & \texttt{62F2FD48190A} & \texttt{vbroadcastsd zmm1, qword ptr [rdx]} \\
+Intel & \texttt{000C} & \texttt{62F2FD48B8E1} & \texttt{vfmadd231pd zmm4, zmm0, zmm1} \\
+Intel & \texttt{0012} & \texttt{62F2FD48194A01} & \texttt{vbroadcastsd zmm1, qword ptr [rdx+8]} \\
+Intel & \texttt{0019} & \texttt{62F2FD48B8E9} & \texttt{vfmadd231pd zmm5, zmm0, zmm1} \\
+Intel & \texttt{001F} & \texttt{62F2FD48194A02} & \texttt{vbroadcastsd zmm1, qword ptr [rdx+16]} \\
+Intel & \texttt{0026} & \texttt{62F2FD48B8F1} & \texttt{vfmadd231pd zmm6, zmm0, zmm1} \\
+Intel & \texttt{002C} & \texttt{62F2FD48194A03} & \texttt{vbroadcastsd zmm1, qword ptr [rdx+24]} \\
+Intel & \texttt{0033} & \texttt{62F2FD48B8F9} & \texttt{vfmadd231pd zmm7, zmm0, zmm1} \\
+Intel & \texttt{0039} & \texttt{4883C640} & \texttt{add rsi, 64} \\
+Intel & \texttt{003D} & \texttt{4883C220} & \texttt{add rdx, 32} \\
+Intel & \texttt{0041} & \texttt{4883E901} & \texttt{sub rcx, 1} \\
+Intel & \texttt{0045} & \texttt{75B9} & \texttt{jnz wide64} \\
+\midrule
+ARM & \texttt{0000} & \texttt{4CDF7C20} & \texttt{wide64: ld1 \{v0.2d\}, [x1], \#16} \\
+ARM & \texttt{0004} & \texttt{4DDFCC41} & \texttt{ld1r \{v1.2d\}, [x2], \#8} \\
+ARM & \texttt{0008} & \texttt{4E61CC04} & \texttt{fmla v4.2d, v0.2d, v1.2d} \\
+ARM & \texttt{000C} & \texttt{4DDFCC41} & \texttt{ld1r \{v1.2d\}, [x2], \#8} \\
+ARM & \texttt{0010} & \texttt{4E61CC05} & \texttt{fmla v5.2d, v0.2d, v1.2d} \\
+ARM & \texttt{0014} & \texttt{4DDFCC41} & \texttt{ld1r \{v1.2d\}, [x2], \#8} \\
+ARM & \texttt{0018} & \texttt{4E61CC06} & \texttt{fmla v6.2d, v0.2d, v1.2d} \\
+ARM & \texttt{001C} & \texttt{4DDFCC41} & \texttt{ld1r \{v1.2d\}, [x2], \#8} \\
+ARM & \texttt{0020} & \texttt{4E61CC07} & \texttt{fmla v7.2d, v0.2d, v1.2d} \\
+ARM & \texttt{0024} & \texttt{F1000400} & \texttt{subs x0, x0, \#1} \\
+ARM & \texttt{0028} & \texttt{54FFFEC1} & \texttt{b.ne wide64} \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table}
+\noindent\path{kernels/bx512/wide64.sew64.lmul1.tu.mu.vlen512.xlen64.le.bin}\par
